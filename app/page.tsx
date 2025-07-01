@@ -76,17 +76,29 @@ function getPreview(text: string, maxLines = 3) {
 	);
 }
 
+
 export default function Home() {
-	return (
-		<Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">
-			<div className="text-center">
-				<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-				<p className="text-gray-600">Loading...</p>
-			</div>
-		</div>}>
-			<HomeContent />
-		</Suspense>
-	);
+  const router = useRouter();
+  useEffect(() => {
+	// Only run on client
+	if (typeof window !== "undefined") {
+	  const isLoggedIn = localStorage.getItem("isLoggedIn");
+	  if (!isLoggedIn) {
+		router.replace("/login");
+	  }
+	}
+  }, [router]);
+
+  return (
+	<Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+	  <div className="text-center">
+		<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+		<p className="text-gray-600">Loading...</p>
+	  </div>
+	</div>}>
+	  <HomeContent />
+	</Suspense>
+  );
 }
 
 function HomeContent() {

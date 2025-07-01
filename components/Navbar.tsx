@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { currentUser } from "../app/userData";
 
 interface NavbarProps {
   onSearch?: (query: string) => void;
@@ -11,8 +10,23 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Load user info from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const userStr = localStorage.getItem("currentUser");
+      if (userStr) {
+        const userData = JSON.parse(userStr);
+        console.log('Navbar: Loaded user data from localStorage:', userData);
+        setCurrentUser(userData);
+      } else {
+        console.log('Navbar: No user data found in localStorage');
+      }
+    }
+  }, []);
 
   // Auto-collapse on mobile
   useEffect(() => {
@@ -143,16 +157,31 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
         </nav>
 
         {/* User Section */}
-        {!isCollapsed && (
+        {!isCollapsed && currentUser && (
           <div className="absolute bottom-4 left-0 right-0 px-4">
             <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 cursor-pointer transition-all duration-300 hover:bg-blue-100 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-200/50" onClick={() => router.push('/profile')}>
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 hover:bg-blue-700 hover:shadow-md">
-                  {currentUser.given_name.charAt(0)}
+                  {(currentUser?.given_name || currentUser?.firstName || currentUser?.name || currentUser?.user_id || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-blue-700 truncate">{currentUser.given_name} {currentUser.surname}</p>
-                  <p className="text-xs text-blue-600">Student</p>
+                  <p className="text-sm font-medium text-blue-700 truncate">
+                    {currentUser?.given_name && currentUser?.surname 
+                      ? `${currentUser.given_name} ${currentUser.surname}`
+                      : currentUser?.firstName && currentUser?.lastName
+                      ? `${currentUser.firstName} ${currentUser.lastName}`
+                      : currentUser?.name
+                      ? currentUser.name
+                      : currentUser?.user_id 
+                      ? currentUser.user_id
+                      : currentUser?.username
+                      ? currentUser.username
+                      : 'User'
+                    }
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    {currentUser?.user_type === 'teacher' ? 'Teacher' : 'Student'}
+                  </p>
                 </div>
               </div>
             </div>

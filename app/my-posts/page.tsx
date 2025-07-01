@@ -2,35 +2,8 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../../components/Navbar";
 import { useRouter } from "next/navigation";
-import { currentUser } from "../userData";
 import { getMyPosts } from "../api/posts";
 import { PostWithReplies } from "../types";
-
-// Dummy data for user's posts (filtered from all posts)
-// const userPosts = [
-//   {
-//     id: 2,
-//     title: "AP Calculus AB - Derivatives Help",
-//     author: "alice",
-//     time: "2025-06-23",
-//     category: "AP Calculus AB",
-//     content: `Can someone explain the chain rule for derivatives?\nI keep getting confused with composite functions.\nAny tips or practice problems?`,
-//     replies: [
-//       { id: 1, author: "bob", content: "Try breaking it down step by step!" },
-//     ],
-//   },
-//   {
-//     id: 5,
-//     title: "AP English Literature - Essay Writing",
-//     author: "alice",
-//     time: "2025-06-20",
-//     category: "AP English Literature",
-//     content: `Tips for writing strong thesis statements?\nStruggling with poetry analysis essays.\nHow do you structure your arguments?`,
-//     replies: [
-//       { id: 1, author: "charlie", content: "Start with a clear claim about the text's meaning." },
-//     ],
-//   },
-// ];
 
 export default function MyPosts() {
   const router = useRouter();
@@ -38,18 +11,31 @@ export default function MyPosts() {
   const [userPosts, setUserPosts] = useState<PostWithReplies[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Load user's posts on component mount
+  // Load user info from localStorage
   useEffect(() => {
-    loadMyPosts();
+    if (typeof window !== "undefined") {
+      const userStr = localStorage.getItem("currentUser");
+      if (userStr) {
+        setCurrentUser(JSON.parse(userStr));
+      }
+    }
   }, []);
 
-  const loadMyPosts = async () => {
+  // Load user's posts on component mount (after user info is loaded)
+  useEffect(() => {
+    if (currentUser && currentUser.user_id) {
+      loadMyPosts(currentUser.user_id);
+    }
+  }, [currentUser]);
+
+  const loadMyPosts = async (userId: string) => {
     try {
       setLoading(true);
       setError("");
-      console.log('Loading my posts for user:', currentUser.user_id);
-      const response: any = await getMyPosts(currentUser.user_id);
+      console.log('Loading my posts for user:', userId);
+      const response: any = await getMyPosts(userId);
       
       if (response.status === 'success') {
         const posts = response.posts.map((post: any) => ({
@@ -57,8 +43,6 @@ export default function MyPosts() {
           replies: post.replies || []
         }));
         setUserPosts(posts);
-        
-        // Show message if using fallback data
         if (response.message && response.message.includes('fallback')) {
           setError(`Note: ${response.message}`);
         }
@@ -68,7 +52,6 @@ export default function MyPosts() {
     } catch (error) {
       console.error('Error loading user posts:', error);
       setError(`Failed to load your posts: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
-      // Keep existing posts if API fails
     } finally {
       setLoading(false);
     }
@@ -99,7 +82,7 @@ export default function MyPosts() {
             <h1 className="text-3xl font-bold text-blue-700">My Posts</h1>
             <div className="flex items-center gap-4">
               <button
-                onClick={loadMyPosts}
+                onClick={() => currentUser?.user_id && loadMyPosts(currentUser.user_id)}
                 disabled={loading}
                 className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
@@ -168,7 +151,7 @@ export default function MyPosts() {
                   </div>
                   
                   <div className="text-gray-600 text-sm mb-3">
-                    by <span className="text-blue-600 font-semibold">{post.anonymous ? 'Anonymous' : `${currentUser.given_name} ${currentUser.surname}`}</span> • 
+                    by <span className="text-blue-600 font-semibold">{post.anonymous ? 'Anonymous' : `${currentUser?.given_name || ''} ${currentUser?.surname || ''}`}</span> • 
                     <span className="text-gray-500 ml-1">{new Date(post.upload_time).toLocaleDateString()}</span>
                   </div>
                   

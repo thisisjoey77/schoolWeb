@@ -50,8 +50,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const url = `${API_BASE_URL}${endpoint}`;
-    console.log(`Proxying POST request to: ${url}`, body);
-    
+    // Debug: Log the body being sent to the backend
+    console.log(`[PROXY LOGIN DEBUG] POST to ${url} with body:`, JSON.stringify(body));
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {

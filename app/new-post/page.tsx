@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../../components/Navbar';
 import { allPosts } from '../centralData';
-import { currentUser } from '../userData';
+// Removed import of currentUser; will load from localStorage
 // Import API function
 import { postUpload } from '../api/posts.js';
 
@@ -80,17 +80,19 @@ export default function NewPost() {
   );
 }
 
+
 function NewPostContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const preSelectedCategory = searchParams.get('category');
-  
+
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState(preSelectedCategory || categories[0]);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showAnonymousPopup, setShowAnonymousPopup] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     if (preSelectedCategory && categories.includes(preSelectedCategory)) {
@@ -98,16 +100,35 @@ function NewPostContent() {
     }
   }, [preSelectedCategory]);
 
+  // Load current user from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('currentUser');
+      if (userStr) {
+        try {
+          setCurrentUser(JSON.parse(userStr));
+        } catch (e) {
+          setCurrentUser(null);
+        }
+      }
+    }
+  }, []);
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim() || !content.trim()) {
       alert('Please fill in all required fields.');
       return;
     }
+    if (!currentUser || !currentUser.user_id) {
+      alert('User not found. Please log in again.');
+      return;
+    }
 
     setIsSubmitting(true);
-    
+
     try {
       // Submit to the database via API
       const apiResponse = await postUpload({
@@ -125,7 +146,7 @@ function NewPostContent() {
       } else {
         throw new Error(apiResponse.message || 'Failed to create post');
       }
-      
+
     } catch (error) {
       console.error('API Error:', error);
       alert('Failed to create post: ' + error);
@@ -151,6 +172,14 @@ function NewPostContent() {
     setIsAnonymous(false);
     setShowAnonymousPopup(false);
   };
+
+  // If user is not loaded, show nothing (or a loading state)
+  if (currentUser === null) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-600">Loading user...</div>;
+  }
+  if (!currentUser || !currentUser.user_id) {
+    return <div className="min-h-screen flex items-center justify-center text-red-600">User not found. Please log in.</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 relative">
