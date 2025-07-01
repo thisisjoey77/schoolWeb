@@ -1,11 +1,19 @@
 # School Web Forum
 
-A modern school forum web application built with Next.js and FastAPI integration.
+<p>
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white" />
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white" />
+</p>
 
-## 🚀 Live Repository
-GitHub: https://github.com/thisisjoey77/schoolWeb
 
-## ⚡ Quick Start
+Project for KISJ's "Reddit"-like Question Board Website
+
+## Web Link
+https://school-web2.vercel.app/ 
+
+## ⚡ Quick Start & Testing
 
 First, run the development server:
 
@@ -34,8 +42,7 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Creator & Contributors
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+* **Joy Kim: Program Creator**
+* **Sang Ahn, Ethan Cho, Soomin Kim, Zijun Huang, Alisa Kim: Pilot Testers & Maintenance**
