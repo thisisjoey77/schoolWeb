@@ -11,7 +11,7 @@
 Project for KISJ's "Reddit"-like Question Board Website
 
 ## Web Link
-https://school-web2.vercel.app/ 
+https://school-web-zdso.vercel.app/ 
 
 
 ## Creator & Contributors
