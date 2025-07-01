@@ -7,9 +7,10 @@ import { allPosts } from './centralData';
 import { getPostList, getPostsByCategory } from './api/posts';
 
 const categories = [
-	"All",
-	"General",
-	"Math",
+ "All",
+ "General",
+ "Dorm",
+ "Math",
 	"AP Calculus AB",
 	"AP Calculus BC",
 	"Algebra 1",
@@ -250,17 +251,17 @@ function HomeContent() {
 							</div>
 							<div className="flex items-center gap-4 mb-4">
 								<label className="text-blue-700 font-semibold">Filter by Category:</label>
-								<select
-									value={selectedCategory}
-									onChange={(e) => setSelectedCategory(e.target.value)}
-									className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-								>
-									{categories.map((category) => (
-										<option key={category} value={category}>
-											{category}
-										</option>
-									))}
-								</select>
+ <select
+ value={selectedCategory}
+ onChange={(e) => setSelectedCategory(e.target.value)}
+ className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 font-semibold"
+ >
+ {categories.map((category) => (
+ <option key={category} value={category} className="text-gray-900 font-semibold">
+ {category}
+ </option>
+ ))}
+ </select>
 							</div>
 						</div>
 					)}

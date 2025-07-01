@@ -7,6 +7,10 @@ import { PostWithReplies } from '../types';
 import { getPostsByCategory } from '../api/posts';
 
 const categoryGroups = {
+  "School Life": [
+    "General",
+    "Dorm"
+  ],
   "Mathematics": [
     "AP Calculus AB", 
     "AP Calculus BC",
@@ -216,19 +220,18 @@ export default function Categories() {
                       <button
                         key={className}
                         onClick={() => {
-                          console.log('Class clicked:', className);
                           setSelectedClass(className);
                           loadPostsForClass(className);
                         }}
                         className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 relative z-20 pointer-events-auto ${
                           selectedClass === className
                             ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-500'
-                            : 'bg-gray-50 text-gray-700 hover:bg-yellow-50 hover:text-yellow-600 border-2 border-transparent'
+                            : 'bg-gray-50 text-gray-900 hover:bg-yellow-50 hover:text-yellow-700 border-2 border-transparent'
                         }`}
                       >
                         <div className="flex justify-between items-center">
-                          <span className="font-medium">{className}</span>
-                          <span className="text-sm text-gray-500">
+                          <span className="font-semibold text-gray-900">{className}</span>
+                          <span className="text-sm text-gray-600">
                             {postsCount} thread{postsCount !== 1 ? 's' : ''}
                           </span>
                         </div>
