@@ -1,6 +1,11 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# School Web Forum
 
-## Getting Started
+A modern school forum web application built with Next.js and FastAPI integration.
+
+## 🚀 Live Repository
+GitHub: https://github.com/thisisjoey77/schoolWeb
+
+## ⚡ Quick Start
 
 First, run the development server:
 
