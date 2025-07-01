@@ -6,19 +6,35 @@ import { PostWithReplies } from "../../types";
 import { getPostById } from "../../centralData";
 import { getPostReplies, postReply } from "../../api/replies";
 import { getPost } from "../../api/posts";
-import { currentUser } from "../../userData";
+// Removed import of currentUser; will load from localStorage
+
 
 export default function PostDetail() {
   const params = useParams();
   const router = useRouter();
   const postId = params?.id ? Number(params.id) : 0;
-  
+
   const [post, setPost] = useState<PostWithReplies | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyContent, setReplyContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submittingReply, setSubmittingReply] = useState(false);
   const [showAnonymousPopup, setShowAnonymousPopup] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Load current user from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userStr = localStorage.getItem('currentUser');
+      if (userStr) {
+        try {
+          setCurrentUser(JSON.parse(userStr));
+        } catch (e) {
+          setCurrentUser(null);
+        }
+      }
+    }
+  }, []);
 
   // Load post and replies from API
   useEffect(() => {
@@ -106,6 +122,10 @@ export default function PostDetail() {
     
     setSubmittingReply(true);
     
+    if (!currentUser || !currentUser.user_id) {
+      alert('User not found. Please log in again.');
+      return;
+    }
     try {
       const response: any = await postReply({
         uploadTime: new Date().toISOString(),
