@@ -54,6 +54,7 @@ export default function Profile() {
     try {
       setLoading(true);
       setError("");
+      console.log('Loading my posts for user:', currentUser.user_id);
       const response: any = await getMyPosts(currentUser.user_id);
       
       if (response.status === 'success') {
@@ -67,7 +68,7 @@ export default function Profile() {
       }
     } catch (error) {
       console.error('Error loading user posts:', error);
-      setError('Failed to load your posts. Please try again.');
+      setError(`Failed to load your posts: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
       // Keep existing posts if API fails
     } finally {
       setLoading(false);

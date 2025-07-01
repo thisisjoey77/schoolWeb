@@ -1,0 +1,10 @@
+{
+  "env": {
+    "NEXT_PUBLIC_API_BASE_URL": "http://3.37.138.131:8000"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_API_BASE_URL": "http://3.37.138.131:8000"
+    }
+  }
+}
