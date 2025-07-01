@@ -1,10 +1,9 @@
 "use client";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PostWithReplies } from './types';
 import { allPosts } from './centralData';
-import { getPostList, getPostsByCategory } from './api/posts';
 
 const categories = [
 	"All",
@@ -77,78 +76,12 @@ function getPreview(text: string, maxLines = 3) {
 }
 
 export default function Home() {
-	return (
-		<Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">
-			<div className="text-center">
-				<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-				<p className="text-gray-600">Loading...</p>
-			</div>
-		</div>}>
-			<HomeContent />
-		</Suspense>
-	);
-}
-
-function HomeContent() {
 	const [selectedCategory, setSelectedCategory] = useState<string>("All");
 	const [openReplies, setOpenReplies] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState<string>("");
-	const [filteredPosts, setFilteredPosts] = useState<PostWithReplies[]>([]);
-	const [loading, setLoading] = useState<boolean>(true);
+	const [filteredPosts, setFilteredPosts] = useState(allPosts);
 	const router = useRouter();
 	const searchParams = useSearchParams();
-
-	// Load initial posts
-	useEffect(() => {
-		async function initializeData() {
-			try {
-				// Load posts from API
-				await loadPosts();
-			} catch (error) {
-				console.error('Failed to load posts from API:', error);
-				// Fall back to local data
-				setFilteredPosts(allPosts);
-			} finally {
-				setLoading(false);
-			}
-		}
-		initializeData();
-	}, []);
-
-	// Function to load posts from API
-	const loadPosts = async (category?: string) => {
-		try {
-			setLoading(true);
-			let response: any;
-			
-			if (category && category !== "All") {
-				response = await getPostsByCategory(category);
-			} else {
-				response = await getPostList();
-			}
-			
-			if (response.status === 'success') {
-				// Convert API response to match our PostWithReplies interface
-				const posts = response.posts.map((post: any) => ({
-					...post,
-					replies: post.replies || []
-				}));
-				setFilteredPosts(posts);
-			} else {
-				throw new Error(response.message || 'Failed to load posts');
-			}
-		} catch (error) {
-			console.error('Error loading posts:', error);
-			// Fall back to local data
-			if (category && category !== "All") {
-				setFilteredPosts(allPosts.filter(post => post.category === category));
-			} else {
-				setFilteredPosts(allPosts);
-			}
-		} finally {
-			setLoading(false);
-		}
-	};
 
 	// Handle search from URL params or search bar
 	useEffect(() => {
@@ -159,30 +92,35 @@ function HomeContent() {
 		}
 	}, [searchParams]);
 
-	const handleSearch = async (query: string) => {
+	const handleSearch = (query: string) => {
 		setSearchQuery(query);
 		if (!query.trim()) {
-			// If no search query, reload posts by category
-			await loadPosts(selectedCategory);
+			// If no search query, filter by category
+			if (selectedCategory === "All") {
+				setFilteredPosts(allPosts);
+			} else {
+				setFilteredPosts(allPosts.filter(post => post.category === selectedCategory));
+			}
 		} else {
-			// First, ensure we have the latest posts from API
-			await loadPosts(selectedCategory);
-			// Then search in the updated posts (client-side filtering with fresh API data)
-			setFilteredPosts(prevPosts => 
-				prevPosts.filter(post => 
-					post.title.toLowerCase().includes(query.toLowerCase()) ||
-					post.content.toLowerCase().includes(query.toLowerCase())
-				)
+			// Search in both title and content
+			const searchResults = allPosts.filter(post => 
+				post.title.toLowerCase().includes(query.toLowerCase()) ||
+				post.content.toLowerCase().includes(query.toLowerCase())
 			);
+			setFilteredPosts(searchResults);
 		}
 	};
 
-	// Update filtered posts when category changes
+	// Update filtered posts when category changes (only if no search query)
 	useEffect(() => {
 		if (!searchQuery.trim()) {
-			loadPosts(selectedCategory);
+			if (selectedCategory === "All") {
+				setFilteredPosts(allPosts);
+			} else {
+				setFilteredPosts(allPosts.filter(post => post.category === selectedCategory));
+			}
 		}
-	}, [selectedCategory]);
+	}, [selectedCategory, searchQuery]);
 
 	return (
 		<div className="min-h-screen bg-gray-50 relative">
@@ -201,7 +139,7 @@ function HomeContent() {
 			<Navbar onSearch={handleSearch} />
 			
 			{/* Main Content */}
-			<div className="pl-64 pt-20 relative z-10"> {/* Account for sidebar and top bar */}
+			<div className="pl-64 pt-20"> {/* Account for sidebar and top bar */}
 				<main className="max-w-4xl mx-auto p-6">
 					{/* Search Results Header */}
 					{searchQuery && (
@@ -231,11 +169,9 @@ function HomeContent() {
 					{/* Category Filter (only show if not searching) */}
 					{!searchQuery && (
 						<div className="mb-6">
-							<div className="flex items-center justify-between mb-4">
-								<h1 className="text-3xl font-bold text-blue-700">
-									School Forum
-								</h1>
-							</div>
+							<h1 className="text-3xl font-bold text-blue-700 mb-4">
+								School Forum
+							</h1>
 							<div className="flex items-center gap-4 mb-4">
 								<label className="text-blue-700 font-semibold">Filter by Category:</label>
 								<select
@@ -254,11 +190,7 @@ function HomeContent() {
 					)}
 
 					{/* Posts List */}
-					{loading ? (
-						<div className="bg-white rounded-lg p-8 shadow-lg border border-gray-200 text-center">
-							<div className="text-blue-600 text-xl">Loading posts...</div>
-						</div>
-					) : filteredPosts.length === 0 ? (
+					{filteredPosts.length === 0 ? (
 						<div className="bg-white rounded-lg p-8 shadow-lg border border-gray-200 text-center">
 							<h2 className="text-xl font-semibold text-gray-600 mb-2">
 								{searchQuery ? 'No posts found' : 'No threads in this category'}
@@ -272,10 +204,7 @@ function HomeContent() {
 							<div
 								key={post.post_id}
 								className="mb-4 rounded-lg bg-white p-6 shadow-lg border border-gray-200 cursor-pointer hover:shadow-xl hover:border-yellow-400 transition-all duration-200"
-								onClick={(e) => {
-									console.log('Post clicked:', post.post_id);
-									router.push(`/post/${post.post_id}`);
-								}}
+								onClick={() => router.push(`/post/${post.post_id}`)}
 							>
 								<h2 className="text-2xl font-bold text-blue-700 mb-2">
 									{post.title}
