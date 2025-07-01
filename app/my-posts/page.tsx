@@ -57,6 +57,11 @@ export default function MyPosts() {
           replies: post.replies || []
         }));
         setUserPosts(posts);
+        
+        // Show message if using fallback data
+        if (response.message && response.message.includes('fallback')) {
+          setError(`Note: ${response.message}`);
+        }
       } else {
         throw new Error(response.message || 'Failed to load posts');
       }
@@ -110,9 +115,24 @@ export default function MyPosts() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <div className="text-red-600 font-medium">Error</div>
-              <div className="text-red-700">{error}</div>
+            <div className={`border rounded-lg p-4 mb-6 ${
+              error.includes('Note:') 
+                ? 'bg-yellow-50 border-yellow-200' 
+                : 'bg-red-50 border-red-200'
+            }`}>
+              <div className={`font-medium ${
+                error.includes('Note:') 
+                  ? 'text-yellow-600' 
+                  : 'text-red-600'
+              }`}>
+                {error.includes('Note:') ? 'Information' : 'Error'}
+              </div>
+              <div className={error.includes('Note:') 
+                ? 'text-yellow-700' 
+                : 'text-red-700'
+              }>
+                {error}
+              </div>
             </div>
           )}
 

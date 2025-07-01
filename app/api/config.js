@@ -1,12 +1,7 @@
 // API Configuration
 function getAPIBaseURL() {
-  // In development, use proxy
-  if (process.env.NODE_ENV === 'development') {
-    return '/api/proxy';
-  }
-  
-  // In production, use the public environment variable or fallback
-  return process.env.NEXT_PUBLIC_API_BASE_URL || 'http://3.37.138.131:8000';
+  // Always use the Next.js API proxy to avoid CORS issues
+  return '/api/proxy';
 }
 
 const API_BASE_URL = getAPIBaseURL();
@@ -19,26 +14,36 @@ console.log('API Configuration:', {
 
 // Helper function to make API requests
 export async function apiRequest(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  // Use the proxy route with endpoint as query parameter
+  const url = `${API_BASE_URL}?endpoint=${encodeURIComponent(endpoint)}`;
   
   const defaultOptions = {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     },
-    mode: 'cors', // Enable CORS
   };
   
   const mergedOptions = { ...defaultOptions, ...options };
   
   try {
-    console.log(`Making API request to: ${url}`); // Debug log
-    const response = await fetch(url, mergedOptions);
+    console.log(`Making API request via proxy to: ${endpoint}`, { options: mergedOptions }); // Debug log
+    
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
+    const response = await fetch(url, {
+      ...mergedOptions,
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`API Error ${response.status}:`, errorText);
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error(`API Error ${response.status}:`, errorData);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown error'}`);
     }
     
     const data = await response.json();
@@ -47,15 +52,32 @@ export async function apiRequest(endpoint, options = {}) {
   } catch (error) {
     console.error(`API request failed for ${endpoint}:`, error);
     
-    // Provide more specific error messages
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error(`Network error: Unable to connect to ${API_BASE_URL}. Please check if the API server is running and accessible.`);
+    // Handle different types of errors
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout: The API server did not respond within 15 seconds.`);
     }
     
-    // In production, if the primary API fails, we might want to provide fallback data
-    if (process.env.NODE_ENV === 'production' && error.message.includes('Network error')) {
-      console.warn(`Primary API (${API_BASE_URL}) failed in production. Error:`, error.message);
-      // You could implement fallback logic here if needed
+    if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+      throw new Error(`Network error: Unable to connect to the API server. Please check your internet connection.`);
+    }
+    
+    // Provide fallback data for specific endpoints in case of persistent errors
+    if (endpoint === '/my-post-list') {
+      console.log('API failed for my-post-list, returning fallback empty data');
+      return {
+        status: 'success',
+        posts: [],
+        message: 'Using fallback data - API server temporarily unavailable'
+      };
+    }
+    
+    if (endpoint === '/post-list') {
+      console.log('API failed for post-list, returning fallback empty data');
+      return {
+        status: 'success',
+        posts: [],
+        message: 'Using fallback data - API server temporarily unavailable'
+      };
     }
     
     throw error;
