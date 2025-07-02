@@ -9,6 +9,7 @@ import { postUpload } from '../api/posts.js';
 
 const categories = [
   "General",
+  "Dorm",
   "AP Calculus AB", 
   "AP Calculus BC",
   "Algebra 1",

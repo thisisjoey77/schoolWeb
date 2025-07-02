@@ -140,16 +140,21 @@ function HomeContent() {
 				response = await getPostList();
 			}
 			
-			if (response.status === 'success') {
-				// Convert API response to match our PostWithReplies interface
-				const posts = response.posts.map((post: any) => ({
-					...post,
-					replies: post.replies || []
-				}));
-				setFilteredPosts(posts);
-			} else {
-				throw new Error(response.message || 'Failed to load posts');
-			}
+				if (response.status === 'success') {
+					// Merge replies from local data if API does not provide them
+					const posts = response.posts.map((post: any) => {
+						const localPost = allPosts.find(p => p.post_id === post.post_id);
+						return {
+							...post,
+							replies: (post.replies && post.replies.length > 0)
+							  ? post.replies
+							  : (localPost ? localPost.replies : [])
+						};
+					});
+					setFilteredPosts(posts);
+				} else {
+					throw new Error(response.message || 'Failed to load posts');
+				}
 		} catch (error) {
 			console.error('Error loading posts:', error);
 			// Fall back to local data
