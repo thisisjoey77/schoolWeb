@@ -16,12 +16,21 @@ https://school-web-zdso.vercel.app/
 
 ## Creator & Contributors
 
-### ESC Leadership, 25-26
-* **Joy Kim**: Program Creator & DB Maintenance
-* **Sang Ahn**: Pilot Tester & DB Maintenance
-* **Zijun Huang**: DB Management
-* **Ethan Cho**: Pilot Tester & DB Maintenance
+### **Creator**
+* Joy Kim
 
-### ESC Members
-* **Soomin Kim**: Pilot Tester & DB Maintenance
-* **Alisa Kim**: Pilot Tester & DB Maintenance
+### **DB Management | 25-26**
+* Sang Ahn
+* Zijun Huang
+* Ethan Cho
+* Soomin Kim
+* Alisa Kim
+
+### **Pilot Testers**
+* Sang Ahn
+* Ethan Cho
+* Soomin Kim
+* Alisa Kim
+* Hannah Park
+
+
