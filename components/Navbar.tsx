@@ -11,8 +11,11 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isTeacher, setIsTeacher] = useState<boolean>(false);
   const router = useRouter();
   const pathname = usePathname();
+
+  console.log('Navbar: Current isTeacher state:', isTeacher);
 
   // Load user info from localStorage
   useEffect(() => {
@@ -22,11 +25,54 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
         const userData = JSON.parse(userStr);
         console.log('Navbar: Loaded user data from localStorage:', userData);
         setCurrentUser(userData);
+        
+        // Check if user is already marked as teacher in localStorage
+        if (userData.user_type === 'teacher') {
+          console.log('Navbar: User already marked as teacher in localStorage');
+          setIsTeacher(true);
+        }
+        
+        // Always check teacher status from backend to be sure
+        if (userData.school_id) {
+          console.log('Navbar: Checking teacher status for school_id:', userData.school_id);
+          checkIfTeacher(userData.school_id);
+        }
       } else {
         console.log('Navbar: No user data found in localStorage');
       }
     }
   }, []);
+
+  const checkIfTeacher = async (schoolId: string) => {
+    try {
+      console.log('Navbar: Making teacher check request for school_id:', schoolId);
+      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(`/get-classes?school_id=${schoolId}`)}`);
+      const data = await response.json();
+      console.log('Navbar: Teacher check response:', data);
+      
+      if (data.status === 'success' && data.is_teacher) {
+        console.log('Navbar: User confirmed as teacher, updating state');
+        setIsTeacher(true);
+        // Also set user_type in localStorage for consistency
+        if (typeof window !== 'undefined') {
+          const userStr = localStorage.getItem('currentUser');
+          if (userStr) {
+            const userData = JSON.parse(userStr);
+            userData.user_type = 'teacher';
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            setCurrentUser(userData);
+            console.log('Navbar: Updated localStorage with user_type=teacher');
+          }
+        }
+      } else {
+        console.log('Navbar: User is not a teacher');
+        setIsTeacher(false);
+      }
+    } catch (error) {
+      console.error('Error checking teacher status:', error);
+      setIsTeacher(false);
+    }
+  };
 
   // Auto-collapse on mobile
   useEffect(() => {
@@ -57,6 +103,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
     { href: '/profile', label: 'Profile' },
     { href: '/new-post', label: 'New Post' },
     { href: '/category', label: 'Categories' },
+    ...(isTeacher ? [{ href: '/classes', label: 'Classes' }] : []),
   ];
 
   return (
@@ -159,13 +206,16 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
         {/* User Section */}
         {!isCollapsed && currentUser && (
           <div className="absolute bottom-4 left-0 right-0 px-4">
-            <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 cursor-pointer transition-all duration-300 hover:bg-blue-100 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-200/50" onClick={() => router.push('/profile')}>
+            <div
+              className={`bg-blue-50 rounded-lg p-3 border border-blue-200 cursor-pointer transition-all duration-300 hover:bg-blue-100 hover:border-blue-300 hover:shadow-lg ${isTeacher ? 'hover:shadow-red-200/70' : 'hover:shadow-blue-200/50'}`}
+              onClick={() => router.push('/profile')}
+            >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 hover:bg-blue-700 hover:shadow-md">
+                <div className={`w-8 h-8 ${isTeacher ? 'bg-red-600' : 'bg-blue-600'} rounded-full flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 ${isTeacher ? 'hover:bg-red-700' : 'hover:bg-blue-700'} hover:shadow-md`}>
                   {(currentUser?.given_name || currentUser?.firstName || currentUser?.name || currentUser?.user_id || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-blue-700 truncate">
+                  <p className={`text-sm font-medium ${isTeacher ? 'text-red-700' : 'text-blue-700'} truncate`}>
                     {currentUser?.given_name && currentUser?.surname 
                       ? `${currentUser.given_name} ${currentUser.surname}`
                       : currentUser?.firstName && currentUser?.lastName
@@ -179,8 +229,8 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                       : 'User'
                     }
                   </p>
-                  <p className="text-xs text-blue-600">
-                    {currentUser?.user_type === 'teacher' ? 'Teacher' : 'Student'}
+                  <p className={`text-xs ${isTeacher ? 'text-red-600 font-bold' : 'text-blue-600'}`} key={isTeacher ? 'teacher' : 'student'}>
+                    {isTeacher ? 'Teacher' : 'Student'}
                   </p>
                 </div>
               </div>

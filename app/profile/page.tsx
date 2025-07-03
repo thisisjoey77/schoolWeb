@@ -140,7 +140,11 @@ export default function Profile() {
                 <div>
                   <span className="text-gray-600 font-semibold">Class:</span>
                   <span className="text-gray-700 ml-2">
-                    Class of {currentUser?.class || currentUser?.classOf || currentUser?.graduation_year || 'N/A'}
+                    {currentUser?.class === 1 || currentUser?.class === "1" ? (
+                      <b className="text-red-700">TEACHER</b>
+                    ) : (
+                      <>Class of {currentUser?.class || currentUser?.classOf || currentUser?.graduation_year || 'N/A'}</>
+                    )}
                   </span>
                 </div>
                 <div>

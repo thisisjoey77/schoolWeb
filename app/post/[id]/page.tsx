@@ -5,7 +5,7 @@ import Navbar from "../../../components/Navbar";
 import { PostWithReplies } from "../../types";
 import { getPostById } from "../../centralData";
 import { getPostReplies, postReply } from "../../api/replies";
-import { getPost } from "../../api/posts";
+import { getPost, blockPost, validatePost } from "../../api/posts";
 // Removed import of currentUser; will load from localStorage
 
 
@@ -14,41 +14,52 @@ export default function PostDetail() {
   const router = useRouter();
   const postId = params?.id ? Number(params.id) : 0;
 
+
+  // Synchronously read user from localStorage on first render
+  let initialUser = null;
+  if (typeof window !== "undefined") {
+    const userStr = localStorage.getItem("currentUser");
+    if (userStr) {
+      try {
+        initialUser = JSON.parse(userStr);
+      } catch (e) {
+        initialUser = null;
+      }
+    }
+  }
+  const [currentUser, setCurrentUser] = useState<any>(initialUser);
   const [post, setPost] = useState<PostWithReplies | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyContent, setReplyContent] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submittingReply, setSubmittingReply] = useState(false);
   const [showAnonymousPopup, setShowAnonymousPopup] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isTeacher, setIsTeacher] = useState(false);
+  const [blockingPost, setBlockingPost] = useState(false);
+  const [validatingPost, setValidatingPost] = useState(false);
 
-  // Load current user from localStorage
+  // Check if user is a teacher using backend verification
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('currentUser');
-      if (userStr) {
-        try {
-          setCurrentUser(JSON.parse(userStr));
-        } catch (e) {
-          setCurrentUser(null);
-        }
-      }
+    if (currentUser) {
+      checkIfTeacher(currentUser).then(setIsTeacher);
+    } else {
+      setIsTeacher(false);
     }
-  }, []);
+  }, [currentUser]);
 
   // Load post and replies from API
   useEffect(() => {
     async function loadPost() {
       try {
         setLoading(true);
-        
         // Try to get post from API first
         try {
-          const postResponse: any = await getPost(postId);
+          const requesterSchoolId = currentUser?.school_id || null;
+          const postResponse: any = await getPost(postId, requesterSchoolId);
           if (postResponse.status === 'success') {
             // Successfully got post from API, now get replies
             try {
-              const repliesResponse: any = await getPostReplies(postId);
+              const repliesResponse: any = await getPostReplies(postId, requesterSchoolId);
               if (repliesResponse.status === 'success') {
                 setPost({
                   ...postResponse.post,
@@ -80,7 +91,6 @@ export default function PostDetail() {
             setPost(null);
             return;
           }
-          
           // Try to fetch replies from API for local post
           try {
             const repliesResponse: any = await getPostReplies(postId);
@@ -106,11 +116,10 @@ export default function PostDetail() {
         setLoading(false);
       }
     }
-    
     if (postId) {
       loadPost();
     }
-  }, [postId]);
+  }, [postId, currentUser]);
 
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +185,88 @@ export default function PostDetail() {
   const declineAnonymousTerms = () => {
     setIsAnonymous(false);
     setShowAnonymousPopup(false);
+  };
+
+  // Check if current user is a teacher
+  const checkIfTeacher = async (user: any) => {
+    if (!user || !user.school_id) return false;
+    
+    try {
+      // Try to get classes - only teachers can access this endpoint
+      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(`/get-classes?school_id=${user.school_id}`)}`);
+      const data = await response.json();
+      console.log('Teacher check response:', data);
+      return data.is_teacher === true;
+    } catch (error) {
+      console.error('Error checking teacher status:', error);
+      return false;
+    }
+  };
+
+  const handleBlockPost = async () => {
+    if (!currentUser || !isTeacher || !post) return;
+    
+    const confirmBlock = window.confirm('Are you sure you want to block this post? This will set its validation status to 0.');
+    if (!confirmBlock) return;
+    
+    setBlockingPost(true);
+    try {
+      const response: any = await blockPost(post.post_id, currentUser.school_id);
+      if (response.status === 'success') {
+        // Reload the post to show updated status
+        const requesterSchoolId = currentUser?.school_id || null;
+        const postResponse: any = await getPost(postId, requesterSchoolId);
+        if (postResponse.status === 'success') {
+          // Get replies too
+          const repliesResponse: any = await getPostReplies(postId, requesterSchoolId);
+          setPost({
+            ...postResponse.post,
+            replies: repliesResponse.status === 'success' ? repliesResponse.replies || [] : []
+          });
+        }
+        alert('Post blocked successfully');
+      } else {
+        alert(response.message || 'Failed to block post');
+      }
+    } catch (error) {
+      console.error('Error blocking post:', error);
+      alert('Failed to block post. Please try again.');
+    } finally {
+      setBlockingPost(false);
+    }
+  };
+
+  const handleValidatePost = async () => {
+    if (!currentUser || !isTeacher || !post) return;
+    
+    const confirmValidate = window.confirm('Are you sure you want to validate this post? This will make it visible to all students.');
+    if (!confirmValidate) return;
+    
+    setValidatingPost(true);
+    try {
+      const response: any = await validatePost(post.post_id, currentUser.school_id);
+      if (response.status === 'success') {
+        // Reload the post to show updated status
+        const requesterSchoolId = currentUser?.school_id || null;
+        const postResponse: any = await getPost(postId, requesterSchoolId);
+        if (postResponse.status === 'success') {
+          // Get replies too
+          const repliesResponse: any = await getPostReplies(postId, requesterSchoolId);
+          setPost({
+            ...postResponse.post,
+            replies: repliesResponse.status === 'success' ? repliesResponse.replies || [] : []
+          });
+        }
+        alert('Post validated successfully');
+      } else {
+        alert(response.message || 'Failed to validate post');
+      }
+    } catch (error) {
+      console.error('Error validating post:', error);
+      alert('Failed to validate post. Please try again.');
+    } finally {
+      setValidatingPost(false);
+    }
   };
 
   if (loading) {
@@ -253,19 +344,55 @@ export default function PostDetail() {
           </button>
           
           <div className="bg-white rounded-lg p-6 shadow-lg border border-gray-200">
-            <div className="mb-4">
-              <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-sm font-medium">
-                {post.category}
-              </span>
-              {post.anonymous === 1 && (
-                <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-sm font-medium ml-2">
-                  Anonymous
+            <div className="mb-4 flex items-start justify-between">
+              <div className="flex flex-wrap gap-2">
+                <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-sm font-medium">
+                  {post.category}
                 </span>
+                {post.anonymous === 1 && (
+                  <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-sm font-medium">
+                    Anonymous
+                  </span>
+                )}
+                {post.validated === 0 && (
+                  <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-sm font-medium">
+                    Pending Validation
+                  </span>
+                )}
+              </div>
+              
+              {/* Teacher Block Button */}
+              {isTeacher && post.validated === 1 && (
+                <button
+                  onClick={handleBlockPost}
+                  disabled={blockingPost}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                >
+                  {blockingPost && (
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  )}
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+                  </svg>
+                  {blockingPost ? 'Blocking...' : 'Block'}
+                </button>
               )}
-              {post.validated === 0 && (
-                <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-sm font-medium ml-2">
-                  Pending Validation
-                </span>
+              
+              {/* Teacher Validate Button - new button for validating posts */}
+              {isTeacher && post.validated === 0 && (
+                <button
+                  onClick={handleValidatePost}
+                  disabled={validatingPost}
+                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                >
+                  {validatingPost && (
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                  )}
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {validatingPost ? 'Validating...' : 'Validate'}
+                </button>
               )}
             </div>
             

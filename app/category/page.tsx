@@ -88,6 +88,7 @@ function getPreview(text: string, maxLines = 2) {
   return lines.slice(0, maxLines).join(' ') + (lines.length > maxLines ? '...' : '');
 }
 
+
 export default function Categories() {
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -95,7 +96,19 @@ export default function Categories() {
   const [classPosts, setClassPosts] = useState<PostWithReplies[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [postCounts, setPostCounts] = useState<{ [key: string]: number }>({});
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showPending, setShowPending] = useState<boolean>(false); // Teacher toggle for pending posts
   const router = useRouter();
+
+  // Load user info from localStorage
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const userStr = localStorage.getItem("currentUser");
+      if (userStr) {
+        setCurrentUser(JSON.parse(userStr));
+      }
+    }
+  }, []);
 
   const toggleReplies = (postId: number) => {
     setShowReplies(prev => ({
@@ -107,8 +120,9 @@ export default function Categories() {
   const loadPostsForClass = async (className: string) => {
     try {
       setLoading(true);
-      const response: any = await getPostsByCategory(className);
-      
+      const requesterSchoolId = currentUser?.school_id;
+      // Pass showPending to API if teacher
+      const response: any = await getPostsByCategory(className, requesterSchoolId, showPending);
       if (response.status === 'success') {
         const posts = response.posts.map((post: any) => ({
           ...post,
@@ -132,12 +146,12 @@ export default function Categories() {
   const loadPostCountsForSubject = async (subject: keyof typeof categoryGroups) => {
     const classes = categoryGroups[subject];
     const counts: { [key: string]: number } = {};
-    
     try {
       // Load counts for all classes in parallel
+      const requesterSchoolId = currentUser?.school_id;
       const countPromises = classes.map(async (className) => {
         try {
-          const response: any = await getPostsByCategory(className);
+          const response: any = await getPostsByCategory(className, requesterSchoolId, showPending);
           if (response.status === 'success') {
             counts[className] = response.posts.length;
           } else {
@@ -148,7 +162,6 @@ export default function Categories() {
           counts[className] = 0;
         }
       });
-      
       await Promise.all(countPromises);
       setPostCounts(prevCounts => ({ ...prevCounts, ...counts }));
     } catch (error) {
@@ -171,12 +184,34 @@ export default function Categories() {
           backgroundSize: '50px 50px'
         }}></div>
       </div>
-      
+
       <Navbar />
       <div className="pl-16 md:pl-64 pt-20 relative z-10">
         <main className="max-w-6xl mx-auto p-6 pointer-events-auto">
           <h1 className="text-3xl font-bold text-blue-700 mb-6">Browse by Category</h1>
-          
+
+          {/* Teacher toggle for pending posts */}
+          {currentUser?.is_teacher && (
+            <div className="mb-6 flex items-center gap-4">
+              <label className="flex items-center cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showPending}
+                  onChange={e => {
+                    setShowPending(e.target.checked);
+                    // Reload posts/counts if a class/subject is selected
+                    if (selectedClass) loadPostsForClass(selectedClass);
+                    if (selectedSubject) loadPostCountsForSubject(selectedSubject as keyof typeof categoryGroups);
+                  }}
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                  style={{ accentColor: '#f59e42' }}
+                />
+                <span className="ml-2 text-blue-700 font-medium">Show Pending (Unvalidated) Posts</span>
+              </label>
+              <span className="text-xs text-gray-500">(Teachers only)</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Subject Selection */}
             <div className="bg-white rounded-lg p-6 shadow-lg border border-gray-200">
@@ -186,10 +221,8 @@ export default function Categories() {
                   <button
                     key={subject}
                     onClick={() => {
-                      console.log('Subject clicked:', subject);
                       setSelectedSubject(subject);
                       setSelectedClass('');
-                      // Load post counts for this subject
                       loadPostCountsForSubject(subject as keyof typeof categoryGroups);
                     }}
                     className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 relative z-20 pointer-events-auto ${

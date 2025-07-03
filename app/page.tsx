@@ -103,70 +103,89 @@ export default function Home() {
 }
 
 function HomeContent() {
-	const [selectedCategory, setSelectedCategory] = useState<string>("All");
-	const [openReplies, setOpenReplies] = useState<number | null>(null);
-	const [searchQuery, setSearchQuery] = useState<string>("");
-	const [filteredPosts, setFilteredPosts] = useState<PostWithReplies[]>([]);
-	const [loading, setLoading] = useState<boolean>(true);
-	const router = useRouter();
-	const searchParams = useSearchParams();
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [openReplies, setOpenReplies] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [filteredPosts, setFilteredPosts] = useState<PostWithReplies[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showPending, setShowPending] = useState<boolean>(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-	// Load initial posts
+	// Load user info from localStorage
 	useEffect(() => {
-		async function initializeData() {
-			try {
-				// Load posts from API
-				await loadPosts();
-			} catch (error) {
-				console.error('Failed to load posts from API:', error);
-				// Fall back to local data
-				setFilteredPosts(allPosts);
-			} finally {
-				setLoading(false);
+		if (typeof window !== "undefined") {
+			const userStr = localStorage.getItem("currentUser");
+			if (userStr) {
+				setCurrentUser(JSON.parse(userStr));
 			}
 		}
-		initializeData();
 	}, []);
 
-	// Function to load posts from API
-	const loadPosts = async (category?: string) => {
-		try {
-			setLoading(true);
-			let response: any;
-			
-			if (category && category !== "All") {
-				response = await getPostsByCategory(category);
-			} else {
-				response = await getPostList();
-			}
-			
-				if (response.status === 'success') {
-					// Merge replies from local data if API does not provide them
-					const posts = response.posts.map((post: any) => {
-						const localPost = allPosts.find(p => p.post_id === post.post_id);
-						return {
-							...post,
-							replies: (post.replies && post.replies.length > 0)
-							  ? post.replies
-							  : (localPost ? localPost.replies : [])
-						};
-					});
-					setFilteredPosts(posts);
-				} else {
-					throw new Error(response.message || 'Failed to load posts');
-				}
-		} catch (error) {
-			console.error('Error loading posts:', error);
-			// Fall back to local data
-			if (category && category !== "All") {
-				setFilteredPosts(allPosts.filter(post => post.category === category));
-			} else {
-				setFilteredPosts(allPosts);
-			}
-		} finally {
-			setLoading(false);
+// Load initial posts and whenever showPending changes (for teachers)
+useEffect(() => {
+  async function initializeData() {
+	try {
+	  await loadPosts();
+	} catch (error) {
+	  console.error('Failed to load posts from API:', error);
+	  setFilteredPosts(allPosts);
+	} finally {
+	  setLoading(false);
+	}
+  }
+  if (currentUser) {
+	initializeData();
+  }
+  // eslint-disable-next-line
+}, [currentUser, showPending]);
+
+// Function to load posts from API
+const loadPosts = async (category?: string) => {
+  try {
+	setLoading(true);
+	let response: any;
+	const requesterSchoolId = currentUser?.school_id;
+	const isTeacher = currentUser && currentUser.is_teacher;
+	if (category && category !== "All") {
+	  // Pass showPending only for teachers
+	  response = await getPostsByCategory(category, requesterSchoolId, isTeacher ? showPending : undefined);
+	} else {
+	  // For home, if teacher and showPending is false, filter after fetch
+	  response = await getPostList(requesterSchoolId);
+	}
+	if (response.status === 'success') {
+	  let posts = response.posts.map((post: any) => {
+		const localPost = allPosts.find(p => p.post_id === post.post_id);
+		return {
+		  ...post,
+		  replies: (post.replies && post.replies.length > 0)
+			? post.replies
+			: (localPost ? localPost.replies : [])
+		};
+	  });
+	  // For home page, if teacher and showPending is false, filter validated only
+	  if (category === undefined || category === "All") {
+		if (isTeacher && !showPending) {
+		  posts = posts.filter((post: any) => post.validated === 1);
 		}
-	};
+	  }
+	  setFilteredPosts(posts);
+	} else {
+	  throw new Error(response.message || 'Failed to load posts');
+	}
+  } catch (error) {
+	console.error('Error loading posts:', error);
+	if (category && category !== "All") {
+	  setFilteredPosts(allPosts.filter(post => post.category === category));
+	} else {
+	  setFilteredPosts(allPosts);
+	}
+  } finally {
+	setLoading(false);
+  }
+};
 
 	// Handle search from URL params or search bar
 	useEffect(() => {
@@ -195,12 +214,13 @@ function HomeContent() {
 		}
 	};
 
-	// Update filtered posts when category changes
-	useEffect(() => {
-		if (!searchQuery.trim()) {
-			loadPosts(selectedCategory);
-		}
-	}, [selectedCategory]);
+// Update filtered posts when category changes
+useEffect(() => {
+  if (!searchQuery.trim()) {
+	loadPosts(selectedCategory);
+  }
+  // eslint-disable-next-line
+}, [selectedCategory, showPending]);
 
 	return (
 		<div className="min-h-screen bg-gray-50 relative">
@@ -247,29 +267,41 @@ function HomeContent() {
 					)}
 
 					{/* Category Filter (only show if not searching) */}
-					{!searchQuery && (
-						<div className="mb-6">
-							<div className="flex items-center justify-between mb-4">
-								<h1 className="text-3xl font-bold text-blue-700">
-									School Forum
-								</h1>
-							</div>
-							<div className="flex items-center gap-4 mb-4">
-								<label className="text-blue-700 font-semibold">Filter by Category:</label>
- <select
- value={selectedCategory}
- onChange={(e) => setSelectedCategory(e.target.value)}
- className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 font-semibold"
- >
- {categories.map((category) => (
- <option key={category} value={category} className="text-gray-900 font-semibold">
- {category}
- </option>
- ))}
- </select>
-							</div>
-						</div>
-					)}
+ { !searchQuery && (
+ <div className="mb-6">
+   <div className="flex items-center justify-between mb-4">
+	 <h1 className="text-3xl font-bold text-blue-700">
+	   School Forum
+	 </h1>
+	 {/* Teacher toggle for pending posts */}
+	 {currentUser && currentUser.is_teacher && (
+	   <label className="flex items-center gap-2 text-blue-700 font-semibold bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+		 <input
+		   type="checkbox"
+		   checked={showPending}
+		   onChange={e => setShowPending(e.target.checked)}
+		   className="accent-blue-600"
+		 />
+		 Show pending/unvalidated posts
+	   </label>
+	 )}
+   </div>
+   <div className="flex items-center gap-4 mb-4">
+	 <label className="text-blue-700 font-semibold">Filter by Category:</label>
+	 <select
+	   value={selectedCategory}
+	   onChange={(e) => setSelectedCategory(e.target.value)}
+	   className="px-3 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 font-semibold"
+	 >
+	   {categories.map((category) => (
+		 <option key={category} value={category} className="text-gray-900 font-semibold">
+		   {category}
+		 </option>
+	   ))}
+	 </select>
+   </div>
+ </div>
+ )}
 
 					{/* Posts List */}
 					{loading ? (
