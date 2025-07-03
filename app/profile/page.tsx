@@ -6,6 +6,24 @@ import { useRouter } from 'next/navigation';
 import { getMyPosts } from "../api/posts";
 import { PostWithReplies } from "../types";
 
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
+	// Convert number to boolean if needed (database stores as tinyint)
+	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
+	
+	// If not anonymous, always show author
+	if (!anonymous) {
+		return authorId;
+	}
+	
+	// If anonymous and current user is teacher, show actual author with indicator
+	if (anonymous && isTeacher) {
+		return `${authorId} (Posted Anonymously)`;
+	}
+	
+	// If anonymous and current user is not teacher, show Anonymous
+	return 'Anonymous';
+}
+
 
 // Dummy user data and posts are commented out to avoid syntax errors
 
@@ -233,7 +251,7 @@ export default function Profile() {
                     <span className="font-semibold text-yellow-600 bg-yellow-50 px-2 py-1 rounded">{post.category}</span> • 
                     <span className="text-gray-500 ml-1">{new Date(post.upload_time).toLocaleDateString()}</span> • 
                     <span className="text-blue-600 ml-1 font-semibold">{post.replies?.length || 0} replies</span>
-                    {post.anonymous === 1 && <span className="text-orange-600 ml-1 font-semibold">• Anonymous</span>}
+                    {post.anonymous === 1 && <span className="text-orange-600 ml-1 font-semibold">• Posted Anonymously</span>}
                     {post.validated === 0 && <span className="text-red-600 ml-1 font-semibold">• Pending Validation</span>}
                   </div>
                 </div>

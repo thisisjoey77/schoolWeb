@@ -88,6 +88,24 @@ function getPreview(text: string, maxLines = 2) {
   return lines.slice(0, maxLines).join(' ') + (lines.length > maxLines ? '...' : '');
 }
 
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
+	// Convert number to boolean if needed (database stores as tinyint)
+	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
+	
+	// If not anonymous, always show author
+	if (!anonymous) {
+		return authorId;
+	}
+	
+	// If anonymous and current user is teacher, show actual author with indicator
+	if (anonymous && isTeacher) {
+		return `${authorId} (Posted Anonymously)`;
+	}
+	
+	// If anonymous and current user is not teacher, show Anonymous
+	return 'Anonymous';
+}
+
 
 export default function Categories() {
   const [selectedSubject, setSelectedSubject] = useState<string>('');
@@ -98,6 +116,8 @@ export default function Categories() {
   const [postCounts, setPostCounts] = useState<{ [key: string]: number }>({});
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showPending, setShowPending] = useState<boolean>(false); // Teacher toggle for pending posts
+  const [isTeacher, setIsTeacher] = useState<boolean>(false);
+  const [teacherLoading, setTeacherLoading] = useState<boolean>(true);
   const router = useRouter();
 
   // Load user info from localStorage
@@ -110,6 +130,17 @@ export default function Categories() {
     }
   }, []);
 
+  // Check if user is a teacher using localStorage data
+  React.useEffect(() => {
+    setTeacherLoading(true);
+    if (currentUser && currentUser.is_teacher !== undefined) {
+      setIsTeacher(currentUser.is_teacher === true);
+    } else {
+      setIsTeacher(false);
+    }
+    setTeacherLoading(false);
+  }, [currentUser]);
+
   const toggleReplies = (postId: number) => {
     setShowReplies(prev => ({
       ...prev,
@@ -121,13 +152,16 @@ export default function Categories() {
     try {
       setLoading(true);
       const requesterSchoolId = currentUser?.school_id;
-      // Pass showPending to API if teacher
-      const response: any = await getPostsByCategory(className, requesterSchoolId, showPending);
+      // For teachers use the toggle value, for non-teachers use false (don't show pending)
+      const showPendingParam = isTeacher ? showPending : false;
+      console.log('Loading posts for class:', className, 'showPending:', showPendingParam, 'isTeacher:', isTeacher);
+      const response: any = await getPostsByCategory(className, requesterSchoolId, showPendingParam);
       if (response.status === 'success') {
         const posts = response.posts.map((post: any) => ({
           ...post,
           replies: post.replies || []
         }));
+        console.log('Loaded posts:', posts.length, 'posts for class:', className);
         setClassPosts(posts);
       } else {
         throw new Error(response.message || 'Failed to load posts');
@@ -149,9 +183,11 @@ export default function Categories() {
     try {
       // Load counts for all classes in parallel
       const requesterSchoolId = currentUser?.school_id;
+      const showPendingParam = isTeacher ? showPending : false;
+      console.log('Loading post counts for subject:', subject, 'showPending:', showPendingParam, 'isTeacher:', isTeacher);
       const countPromises = classes.map(async (className) => {
         try {
-          const response: any = await getPostsByCategory(className, requesterSchoolId, showPending);
+          const response: any = await getPostsByCategory(className, requesterSchoolId, showPendingParam);
           if (response.status === 'success') {
             counts[className] = response.posts.length;
           } else {
@@ -163,6 +199,7 @@ export default function Categories() {
         }
       });
       await Promise.all(countPromises);
+      console.log('Loaded post counts:', counts);
       setPostCounts(prevCounts => ({ ...prevCounts, ...counts }));
     } catch (error) {
       console.error('Error loading post counts:', error);
@@ -191,17 +228,24 @@ export default function Categories() {
           <h1 className="text-3xl font-bold text-blue-700 mb-6">Browse by Category</h1>
 
           {/* Teacher toggle for pending posts */}
-          {currentUser?.is_teacher && (
+          {!teacherLoading && isTeacher && (
             <div className="mb-6 flex items-center gap-4">
               <label className="flex items-center cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={showPending}
                   onChange={e => {
+                    console.log('Pending toggle changed to:', e.target.checked);
                     setShowPending(e.target.checked);
                     // Reload posts/counts if a class/subject is selected
-                    if (selectedClass) loadPostsForClass(selectedClass);
-                    if (selectedSubject) loadPostCountsForSubject(selectedSubject as keyof typeof categoryGroups);
+                    if (selectedClass) {
+                      console.log('Reloading posts for class:', selectedClass);
+                      loadPostsForClass(selectedClass);
+                    }
+                    if (selectedSubject) {
+                      console.log('Reloading post counts for subject:', selectedSubject);
+                      loadPostCountsForSubject(selectedSubject as keyof typeof categoryGroups);
+                    }
                   }}
                   className="form-checkbox h-5 w-5 text-blue-600"
                   style={{ accentColor: '#f59e42' }}
@@ -223,6 +267,7 @@ export default function Categories() {
                     onClick={() => {
                       setSelectedSubject(subject);
                       setSelectedClass('');
+                      console.log('Subject selected:', subject, 'isTeacher:', isTeacher);
                       loadPostCountsForSubject(subject as keyof typeof categoryGroups);
                     }}
                     className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 relative z-20 pointer-events-auto ${
@@ -254,6 +299,7 @@ export default function Categories() {
                         key={className}
                         onClick={() => {
                           setSelectedClass(className);
+                          console.log('Class selected:', className, 'isTeacher:', isTeacher);
                           loadPostsForClass(className);
                         }}
                         className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 relative z-20 pointer-events-auto ${
@@ -328,7 +374,7 @@ export default function Categories() {
                       </div>
                       
                       <div className="text-gray-600 text-sm mb-3">
-                        by <span className="text-blue-600 font-semibold">{post.anonymous ? 'Anonymous' : post.author_id}</span> • 
+                        by <span className="text-blue-600 font-semibold">{getAuthorDisplay(post.anonymous, post.author_id, isTeacher)}</span> • 
                         <span className="text-gray-500 ml-1">{new Date(post.upload_time).toLocaleDateString()}</span>
                       </div>
                       
@@ -356,7 +402,7 @@ export default function Categories() {
                           <h4 className="text-sm font-semibold text-gray-700 mb-2">Recent Replies:</h4>
                           {post.replies.slice(0, 3).map((reply) => (
                             <div key={reply.reply_id} className="text-sm text-gray-600 mb-1">
-                              <span className="text-blue-600 font-medium">{reply.anonymous ? 'Anonymous' : reply.author_id}:</span> {reply.content}
+                              <span className="text-blue-600 font-medium">{getAuthorDisplay(reply.anonymous, reply.author_id, isTeacher)}:</span> {reply.content}
                             </div>
                           ))}
                           {post.replies.length > 3 && (

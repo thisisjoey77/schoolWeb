@@ -1,6 +1,26 @@
 import { apiRequest } from './config.js';
 
 /**
+ * Get all posts
+ * @param {string} requesterSchoolId - Optional: Requester's school ID (for teacher view)
+ * @param {boolean} showPending - Optional: For teachers, whether to show pending (unvalidated) posts
+ * @returns {Promise<Object>} All posts response
+ */
+export async function getPostList(requesterSchoolId = null, showPending = false) {
+  let url = requesterSchoolId 
+    ? `/post-list?requester_school_id=${encodeURIComponent(requesterSchoolId)}`
+    : '/post-list';
+  
+  if (requesterSchoolId && typeof showPending === 'boolean') {
+    url += `&show_pending=${showPending ? 'true' : 'false'}`;
+  }
+  
+  return await apiRequest(url, {
+    method: 'GET'
+  });
+}
+
+/**
  * Upload a new post
  * @param {Object} postData - Post data
  * @returns {Promise<Object>} Upload response
@@ -25,21 +45,6 @@ export async function postUpload(postData) {
       anonymous: anonymous,
       category: category
     })
-  });
-}
-
-/**
- * Get all posts
- * @param {string} requesterSchoolId - Optional: Requester's school ID (for teacher view)
- * @returns {Promise<Object>} Posts list response
- */
-export async function getPostList(requesterSchoolId = null) {
-  const url = requesterSchoolId 
-    ? `/post-list?requester_school_id=${encodeURIComponent(requesterSchoolId)}`
-    : '/post-list';
-  
-  return await apiRequest(url, {
-    method: 'GET'
   });
 }
 

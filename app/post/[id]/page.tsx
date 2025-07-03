@@ -8,6 +8,24 @@ import { getPostReplies, postReply } from "../../api/replies";
 import { getPost, blockPost, validatePost } from "../../api/posts";
 // Removed import of currentUser; will load from localStorage
 
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
+	// Convert number to boolean if needed (database stores as tinyint)
+	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
+	
+	// If not anonymous, always show author
+	if (!anonymous) {
+		return authorId;
+	}
+	
+	// If anonymous and current user is teacher, show actual author with indicator
+	if (anonymous && isTeacher) {
+		return `${authorId} (Posted Anonymously)`;
+	}
+	
+	// If anonymous and current user is not teacher, show Anonymous
+	return 'Anonymous';
+}
+
 
 export default function PostDetail() {
   const params = useParams();
@@ -35,16 +53,19 @@ export default function PostDetail() {
   const [submittingReply, setSubmittingReply] = useState(false);
   const [showAnonymousPopup, setShowAnonymousPopup] = useState(false);
   const [isTeacher, setIsTeacher] = useState(false);
+  const [teacherLoading, setTeacherLoading] = useState(true);
   const [blockingPost, setBlockingPost] = useState(false);
   const [validatingPost, setValidatingPost] = useState(false);
 
-  // Check if user is a teacher using backend verification
+  // Check if user is a teacher using localStorage data
   useEffect(() => {
-    if (currentUser) {
-      checkIfTeacher(currentUser).then(setIsTeacher);
+    setTeacherLoading(true);
+    if (currentUser && currentUser.is_teacher !== undefined) {
+      setIsTeacher(currentUser.is_teacher === true);
     } else {
       setIsTeacher(false);
     }
+    setTeacherLoading(false);
   }, [currentUser]);
 
   // Load post and replies from API
@@ -187,22 +208,6 @@ export default function PostDetail() {
     setShowAnonymousPopup(false);
   };
 
-  // Check if current user is a teacher
-  const checkIfTeacher = async (user: any) => {
-    if (!user || !user.school_id) return false;
-    
-    try {
-      // Try to get classes - only teachers can access this endpoint
-      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(`/get-classes?school_id=${user.school_id}`)}`);
-      const data = await response.json();
-      console.log('Teacher check response:', data);
-      return data.is_teacher === true;
-    } catch (error) {
-      console.error('Error checking teacher status:', error);
-      return false;
-    }
-  };
-
   const handleBlockPost = async () => {
     if (!currentUser || !isTeacher || !post) return;
     
@@ -269,7 +274,7 @@ export default function PostDetail() {
     }
   };
 
-  if (loading) {
+  if (loading || teacherLoading) {
     return (
       <div className="min-h-screen bg-gray-50 relative">
         {/* Background Pattern */}
@@ -400,7 +405,7 @@ export default function PostDetail() {
             
             <div className="text-gray-600 mb-4">
               by <span className="text-blue-600 font-semibold">
-                {post.anonymous === 1 ? 'Anonymous' : post.author_id}
+                {getAuthorDisplay(post.anonymous, post.author_id, isTeacher)}
               </span> • 
               <span className="text-gray-500 ml-1">
                 {new Date(post.upload_time).toLocaleDateString()}
@@ -425,7 +430,7 @@ export default function PostDetail() {
                     <div key={reply.reply_id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <div className="text-gray-600 text-sm mb-2">
                         <span className="text-blue-600 font-semibold">
-                          {reply.anonymous === 1 ? 'Anonymous' : reply.author_id}
+                          {getAuthorDisplay(reply.anonymous, reply.author_id, isTeacher)}
                         </span> • 
                         <span className="text-gray-500 ml-1">
                           {new Date(reply.upload_time).toLocaleDateString()}

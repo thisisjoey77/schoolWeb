@@ -77,6 +77,24 @@ function getPreview(text: string, maxLines = 3) {
 	);
 }
 
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
+	// Convert number to boolean if needed (database stores as tinyint)
+	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
+	
+	// If not anonymous, always show author
+	if (!anonymous) {
+		return authorId;
+	}
+	
+	// If anonymous and current user is teacher, show actual author with indicator
+	if (anonymous && isTeacher) {
+		return `${authorId} (Posted Anonymously)`;
+	}
+	
+	// If anonymous and current user is not teacher, show Anonymous
+	return 'Anonymous';
+}
+
 
 export default function Home() {
   const router = useRouter();
@@ -110,6 +128,8 @@ function HomeContent() {
   const [loading, setLoading] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showPending, setShowPending] = useState<boolean>(false);
+  const [isTeacher, setIsTeacher] = useState<boolean>(false);
+  const [teacherLoading, setTeacherLoading] = useState<boolean>(true);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -123,6 +143,17 @@ function HomeContent() {
 		}
 	}, []);
 
+	// Check if user is a teacher using localStorage data
+	useEffect(() => {
+		setTeacherLoading(true);
+		if (currentUser && currentUser.is_teacher !== undefined) {
+			setIsTeacher(currentUser.is_teacher === true);
+		} else {
+			setIsTeacher(false);
+		}
+		setTeacherLoading(false);
+	}, [currentUser]);
+
 // Load initial posts and whenever showPending changes (for teachers)
 useEffect(() => {
   async function initializeData() {
@@ -135,27 +166,32 @@ useEffect(() => {
 	  setLoading(false);
 	}
   }
-  if (currentUser) {
+  if (currentUser && !teacherLoading) { // Wait for teacher status to be determined
 	initializeData();
   }
   // eslint-disable-next-line
-}, [currentUser, showPending]);
+}, [currentUser, showPending, isTeacher, teacherLoading]);
 
 // Function to load posts from API
 const loadPosts = async (category?: string) => {
   try {
+	console.log('Loading posts with:', { category, isTeacher, showPending });
 	setLoading(true);
 	let response: any;
 	const requesterSchoolId = currentUser?.school_id;
-	const isTeacher = currentUser && currentUser.is_teacher;
 	if (category && category !== "All") {
-	  // Pass showPending only for teachers
-	  response = await getPostsByCategory(category, requesterSchoolId, isTeacher ? showPending : undefined);
+	  // Pass showPending for category-specific requests - for teachers use the toggle value, for non-teachers use false
+	  const showPendingParam = isTeacher ? showPending : false;
+	  console.log('Loading category posts with showPending:', showPendingParam);
+	  response = await getPostsByCategory(category, requesterSchoolId, showPendingParam);
 	} else {
-	  // For home, if teacher and showPending is false, filter after fetch
-	  response = await getPostList(requesterSchoolId);
+	  // For home page (All posts), pass showPending for teachers, false for non-teachers
+	  const showPendingParam = isTeacher ? showPending : false;
+	  console.log('Loading all posts with showPending:', showPendingParam);
+	  response = await getPostList(requesterSchoolId, showPendingParam);
 	}
 	if (response.status === 'success') {
+	  console.log('Posts loaded successfully:', response.posts.length, 'posts');
 	  let posts = response.posts.map((post: any) => {
 		const localPost = allPosts.find(p => p.post_id === post.post_id);
 		return {
@@ -165,12 +201,11 @@ const loadPosts = async (category?: string) => {
 			: (localPost ? localPost.replies : [])
 		};
 	  });
-	  // For home page, if teacher and showPending is false, filter validated only
-	  if (category === undefined || category === "All") {
-		if (isTeacher && !showPending) {
-		  posts = posts.filter((post: any) => post.validated === 1);
-		}
-	  }
+	  // API should handle validation filtering based on showPending parameter
+	  console.log('Setting filtered posts:', posts.length, 'posts');
+	  const validatedCount = posts.filter((p: any) => p.validated === 1).length;
+	  const pendingCount = posts.filter((p: any) => p.validated === 0).length;
+	  console.log('Validated posts:', validatedCount, 'Pending posts:', pendingCount);
 	  setFilteredPosts(posts);
 	} else {
 	  throw new Error(response.message || 'Failed to load posts');
@@ -216,11 +251,11 @@ const loadPosts = async (category?: string) => {
 
 // Update filtered posts when category changes
 useEffect(() => {
-  if (!searchQuery.trim()) {
+  if (!searchQuery.trim() && isTeacher !== null) { // Only load when teacher status is determined
 	loadPosts(selectedCategory);
   }
   // eslint-disable-next-line
-}, [selectedCategory, showPending]);
+}, [selectedCategory, showPending, isTeacher]);
 
 	return (
 		<div className="min-h-screen bg-gray-50 relative">
@@ -274,12 +309,15 @@ useEffect(() => {
 	   School Forum
 	 </h1>
 	 {/* Teacher toggle for pending posts */}
-	 {currentUser && currentUser.is_teacher && (
+	 {isTeacher && (
 	   <label className="flex items-center gap-2 text-blue-700 font-semibold bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
 		 <input
 		   type="checkbox"
 		   checked={showPending}
-		   onChange={e => setShowPending(e.target.checked)}
+		   onChange={e => {
+			 console.log('Pending toggle changed:', e.target.checked);
+			 setShowPending(e.target.checked);
+		   }}
 		   className="accent-blue-600"
 		 />
 		 Show pending/unvalidated posts
@@ -304,7 +342,7 @@ useEffect(() => {
  )}
 
 					{/* Posts List */}
-					{loading ? (
+					{loading || teacherLoading ? (
 						<div className="bg-white rounded-lg p-8 shadow-lg border border-gray-200 text-center">
 							<div className="text-blue-600 text-xl">Loading posts...</div>
 						</div>
@@ -336,7 +374,7 @@ useEffect(() => {
 									</span>{" "}
 									• by{" "}
 									<span className="text-blue-600 font-semibold">
-										{post.anonymous ? 'Anonymous' : post.author_id}
+										{getAuthorDisplay(post.anonymous, post.author_id, isTeacher)}
 									</span>{" "}
 									•{" "}
 									<span className="text-gray-500">{new Date(post.upload_time).toLocaleDateString()}</span>
@@ -364,7 +402,7 @@ useEffect(() => {
 											post.replies.map((reply) => (
 												<div key={reply.reply_id} className="mb-2">
 													<span className="text-blue-600 font-semibold">
-														{reply.anonymous ? 'Anonymous' : reply.author_id}:
+														{getAuthorDisplay(reply.anonymous, reply.author_id, isTeacher)}:
 													</span>{" "}
 													<span className="text-gray-700">
 														{reply.content}

@@ -5,6 +5,24 @@ import { useRouter } from "next/navigation";
 import { getMyPosts } from "../api/posts";
 import { PostWithReplies } from "../types";
 
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
+	// Convert number to boolean if needed (database stores as tinyint)
+	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
+	
+	// If not anonymous, always show author
+	if (!anonymous) {
+		return authorId;
+	}
+	
+	// If anonymous and current user is teacher, show actual author with indicator
+	if (anonymous && isTeacher) {
+		return `${authorId} (Posted Anonymously)`;
+	}
+	
+	// If anonymous and current user is not teacher, show Anonymous
+	return 'Anonymous';
+}
+
 export default function MyPosts() {
   const router = useRouter();
   const [showReplies, setShowReplies] = useState<{ [key: number]: boolean }>({});
@@ -12,6 +30,8 @@ export default function MyPosts() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isTeacher, setIsTeacher] = useState<boolean>(false);
+  const [teacherLoading, setTeacherLoading] = useState<boolean>(true);
 
   // Load user info from localStorage
   useEffect(() => {
@@ -22,6 +42,17 @@ export default function MyPosts() {
       }
     }
   }, []);
+
+  // Check if user is a teacher using localStorage data
+  useEffect(() => {
+    setTeacherLoading(true);
+    if (currentUser && currentUser.is_teacher !== undefined) {
+      setIsTeacher(currentUser.is_teacher === true);
+    } else {
+      setIsTeacher(false);
+    }
+    setTeacherLoading(false);
+  }, [currentUser]);
 
   // Load user's posts on component mount (after user info is loaded)
   useEffect(() => {
@@ -119,7 +150,7 @@ export default function MyPosts() {
             </div>
           )}
 
-          {loading ? (
+          {loading || teacherLoading ? (
             <div className="bg-white rounded-lg p-8 shadow-lg border border-gray-200 text-center">
               <div className="text-blue-600 text-xl">Loading your posts...</div>
             </div>
@@ -151,7 +182,12 @@ export default function MyPosts() {
                   </div>
                   
                   <div className="text-gray-600 text-sm mb-3">
-                    by <span className="text-blue-600 font-semibold">{post.anonymous ? 'Anonymous' : `${currentUser?.given_name || ''} ${currentUser?.surname || ''}`}</span> • 
+                    by <span className="text-blue-600 font-semibold">
+                      {post.anonymous ? 
+                        `${currentUser?.given_name || ''} ${currentUser?.surname || ''} (Posted Anonymously)` : 
+                        `${currentUser?.given_name || ''} ${currentUser?.surname || ''}`
+                      }
+                    </span> • 
                     <span className="text-gray-500 ml-1">{new Date(post.upload_time).toLocaleDateString()}</span>
                   </div>
                   
@@ -179,7 +215,7 @@ export default function MyPosts() {
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">Recent Replies:</h4>
                       {post.replies.slice(0, 3).map((reply: any) => (
                         <div key={reply.reply_id} className="text-sm text-gray-600 mb-1">
-                          <span className="text-blue-600 font-medium">{reply.anonymous ? 'Anonymous' : reply.author_id}:</span> {reply.content}
+                          <span className="text-blue-600 font-medium">{getAuthorDisplay(reply.anonymous, reply.author_id, isTeacher)}:</span> {reply.content}
                         </div>
                       ))}
                       {post.replies.length > 3 && (
