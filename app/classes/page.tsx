@@ -297,8 +297,26 @@ export default function Classes() {
     try {
       const response = await addStudentToClass(classId, student.school_id) as ApiResponse;
       if (response.status === 'success') {
-        // Reload classes to update student lists
+        // Preserve expanded state before reloading
+        const currentExpandedClasses = new Set(expandedClasses);
+        
+        // Reload classes to get updated student lists
         await loadClasses(currentUser.school_id);
+        
+        // Restore expanded state and reload students for expanded classes
+        setExpandedClasses(currentExpandedClasses);
+        
+        // Use a ref to trigger student reload after classes are updated
+        setTimeout(() => {
+          setClasses(prevClasses => {
+            const updatedClass = prevClasses.find(cls => cls.class_id === classId);
+            if (updatedClass && currentExpandedClasses.has(classId)) {
+              loadStudentsForClass(updatedClass);
+            }
+            return prevClasses;
+          });
+        }, 0);
+        
         // Close search modal
         setShowStudentSearch({});
         setStudentSearchQuery("");

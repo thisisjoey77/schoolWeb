@@ -158,7 +158,7 @@ function HomeContent() {
 useEffect(() => {
   async function initializeData() {
 	try {
-	  await loadPosts();
+	  await loadPosts(selectedCategory);
 	} catch (error) {
 	  console.error('Failed to load posts from API:', error);
 	  setFilteredPosts(allPosts);
@@ -170,7 +170,7 @@ useEffect(() => {
 	initializeData();
   }
   // eslint-disable-next-line
-}, [currentUser, showPending, isTeacher, teacherLoading]);
+}, [currentUser, showPending, isTeacher, teacherLoading, selectedCategory]);
 
 // Function to load posts from API
 const loadPosts = async (category?: string) => {
@@ -248,14 +248,6 @@ const loadPosts = async (category?: string) => {
 			);
 		}
 	};
-
-// Update filtered posts when category changes
-useEffect(() => {
-  if (!searchQuery.trim() && isTeacher !== null) { // Only load when teacher status is determined
-	loadPosts(selectedCategory);
-  }
-  // eslint-disable-next-line
-}, [selectedCategory, showPending, isTeacher]);
 
 	return (
 		<div className="min-h-screen bg-gray-50 relative">
