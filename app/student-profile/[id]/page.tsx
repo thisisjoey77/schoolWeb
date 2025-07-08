@@ -109,9 +109,15 @@ export default function StudentProfile() {
   useEffect(() => {
     if (studentId && isTeacher) {
       loadStudentProfile();
-      loadStudentPosts();
     }
   }, [studentId, isTeacher]);
+
+  // Load student posts after profile is loaded
+  useEffect(() => {
+    if (studentProfile && studentProfile.user_id) {
+      loadStudentPosts();
+    }
+  }, [studentProfile]);
 
   const loadStudentProfile = async () => {
     try {
@@ -136,12 +142,14 @@ export default function StudentProfile() {
   const loadStudentPosts = async () => {
     try {
       setPostsLoading(true);
-      // Try to get user_id first, fallback to school_id
-      let authorId = studentId;
       
-      // If we have the profile loaded, use the user_id
-      if (studentProfile?.user_id) {
-        authorId = studentProfile.user_id;
+      // Use the user_id from the loaded profile
+      const authorId = studentProfile?.user_id;
+      
+      if (!authorId) {
+        console.warn('No user_id available for loading posts');
+        setStudentPosts([]);
+        return;
       }
       
       const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(`/my-post-list`)}`, {

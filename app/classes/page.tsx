@@ -586,7 +586,8 @@ export default function Classes() {
                               {classItem.studentList.map((student) => (
                                 <div
                                   key={student.school_id}
-                                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors"
+                                  className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors cursor-pointer"
+                                  onClick={() => router.push(`/student-profile/${student.school_id}`)}
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
