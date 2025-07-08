@@ -13,6 +13,10 @@ Project for KISJ's "Reddit"-like Question Board Website
 ## Web Link
 https://school-web-zdso.vercel.app/ 
 
+## Demonstration
+[Issue Title or Description](https://github.com/OWNER/REPO/issues/ISSUE_NUMBER)
+
+
 
 ## Creator & Contributors
 
