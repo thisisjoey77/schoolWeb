@@ -14,7 +14,25 @@ Project for KISJ's "Reddit"-like Question Board Website
 https://school-web-zdso.vercel.app/ 
 
 ## Demonstration
-[Issue Title or Description](https://github.com/OWNER/REPO/issues/ISSUE_NUMBER)
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/04ddc9b3-6604-465d-82e7-6c50a6134e57" width="100%"/></td>
+<td><img src="https://github.com/user-attachments/assets/01aa91b5-8018-4ce4-bbe4-f8d85b88f426" width="100%"/></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/374aeb86-c1ac-4ca5-b597-90f43f822ae8" width="100%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/8649ec9f-cdc3-4501-a5ca-00c6877c42fc" width="100%"/></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/2c093005-6f9f-446a-a5fd-72b747c1a2de" width="100%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/88796a5c-bed9-4e07-86a2-0dba934ad969" width="100%"/></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/a0151e73-63c1-4c64-8a5e-6f4839247d1d" width="100%"/></td>
+    <td><img src="https://github.com/user-attachments/assets/bbaeba99-4660-4dfd-9de2-73617338593a" width="100%"/></td>
+  </tr>
+</table>
+
 
 
 
