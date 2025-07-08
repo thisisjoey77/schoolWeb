@@ -103,7 +103,10 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
     { href: '/profile', label: 'Profile' },
     { href: '/new-post', label: 'New Post' },
     { href: '/category', label: 'Categories' },
-    ...(isTeacher ? [{ href: '/classes', label: 'Classes' }] : []),
+    ...(isTeacher ? [
+      { href: '/classes', label: 'Classes' },
+      { href: '/search-student', label: 'Search Student' }
+    ] : []),
   ];
 
   return (
