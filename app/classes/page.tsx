@@ -185,10 +185,15 @@ export default function Classes() {
 
   const handleMoreMenu = (e: React.MouseEvent, classItem: ClassItem) => {
     e.stopPropagation();
-    setShowMoreMenu(prev => ({
-      ...prev,
-      [classItem.class_id]: !prev[classItem.class_id]
-    }));
+    console.log('More menu clicked for class:', classItem.class_id, 'Current state:', showMoreMenu[classItem.class_id]);
+    setShowMoreMenu(prev => {
+      const newState = {
+        ...prev,
+        [classItem.class_id]: !prev[classItem.class_id]
+      };
+      console.log('New menu state:', newState);
+      return newState;
+    });
   };
 
   const handleCreateClass = async () => {
@@ -355,11 +360,22 @@ export default function Classes() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       let clickedInside = false;
+      
+      // Check if click is inside any menu
       Object.values(menuRefs.current).forEach(ref => {
         if (ref && ref.contains(event.target as Node)) {
           clickedInside = true;
         }
       });
+      
+      // Also check if click is inside any dropdown menu
+      const dropdownMenus = document.querySelectorAll('[data-dropdown-menu]');
+      dropdownMenus.forEach(menu => {
+        if (menu.contains(event.target as Node)) {
+          clickedInside = true;
+        }
+      });
+      
       if (!clickedInside) {
         setShowMoreMenu({});
       }
@@ -478,10 +494,11 @@ export default function Classes() {
                       </div>
                       
                       {/* More Menu Button */}
-                      <div className="relative z-10" ref={el => {menuRefs.current[classItem.class_id] = el;}}>
+                      <div className="relative z-20" ref={el => {menuRefs.current[classItem.class_id] = el;}}>
                         <button
                           onClick={(e) => handleMoreMenu(e, classItem)}
-                          className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                          className="p-2 rounded-full hover:bg-gray-200 transition-colors border border-transparent hover:border-gray-300"
+                          title="More options"
                         >
                           <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
@@ -493,6 +510,7 @@ export default function Classes() {
                     {/* More Menu Dropdown - Positioned outside the card container */}
                     {showMoreMenu[classItem.class_id] && (
                       <div 
+                        data-dropdown-menu
                         className="absolute right-4 bg-white border border-gray-200 rounded-lg shadow-xl z-[100] min-w-48"
                         style={{
                           top: '60px', // Position it below the header
