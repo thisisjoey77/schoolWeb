@@ -256,3 +256,13 @@ export async function validatePost(postId, requesterSchoolId) {
     })
   });
 }
+
+/**
+ * Get pending posts and replies (admin/teacher only)
+ * @param {string} requesterSchoolId - School ID of requester
+ */
+export async function getPendingContent(requesterSchoolId) {
+  return await apiRequest(`/pending-content?requester_school_id=${encodeURIComponent(requesterSchoolId)}`, {
+    method: 'GET'
+  });
+}

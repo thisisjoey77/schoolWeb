@@ -77,22 +77,11 @@ function getPreview(text: string, maxLines = 3) {
 	);
 }
 
-function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
-	// Convert number to boolean if needed (database stores as tinyint)
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isAdminView: boolean) {
 	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
-	
-	// If not anonymous, always show author
-	if (!anonymous) {
-		return authorId;
-	}
-	
-	// If anonymous and current user is teacher, show actual author with indicator
-	if (anonymous && isTeacher) {
-		return `${authorId} (Posted Anonymously)`;
-	}
-	
-	// If anonymous and current user is not teacher, show Anonymous
-	return 'Anonymous';
+	if (!anonymous) return authorId;
+	// Admins can see the true author (backend already supplies real author_id for admin)
+	return isAdminView ? `${authorId} (Anon)` : 'Anonymous';
 }
 
 
@@ -129,6 +118,7 @@ function HomeContent() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showPending, setShowPending] = useState<boolean>(false);
   const [isTeacher, setIsTeacher] = useState<boolean>(false);
+	const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [teacherLoading, setTeacherLoading] = useState<boolean>(true);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -138,7 +128,11 @@ function HomeContent() {
 		if (typeof window !== "undefined") {
 			const userStr = localStorage.getItem("currentUser");
 			if (userStr) {
-				setCurrentUser(JSON.parse(userStr));
+				const u = JSON.parse(userStr);
+				setCurrentUser(u);
+				if (u.is_admin || u.user_type === 'admin') {
+					setIsAdmin(true);
+				}
 			}
 		}
 	}, []);
@@ -181,12 +175,12 @@ const loadPosts = async (category?: string) => {
 	const requesterSchoolId = currentUser?.school_id;
 	if (category && category !== "All") {
 	  // Pass showPending for category-specific requests - for teachers use the toggle value, for non-teachers use false
-	  const showPendingParam = isTeacher ? showPending : false;
+	const showPendingParam = (isTeacher || isAdmin) ? showPending : false;
 	  console.log('Loading category posts with showPending:', showPendingParam);
 	  response = await getPostsByCategory(category, requesterSchoolId, showPendingParam);
 	} else {
 	  // For home page (All posts), pass showPending for teachers, false for non-teachers
-	  const showPendingParam = isTeacher ? showPending : false;
+	const showPendingParam = (isTeacher || isAdmin) ? showPending : false;
 	  console.log('Loading all posts with showPending:', showPendingParam);
 	  response = await getPostList(requesterSchoolId, showPendingParam);
 	}
@@ -300,8 +294,8 @@ const loadPosts = async (category?: string) => {
 	 <h1 className="text-3xl font-bold text-blue-700">
 	   School Forum
 	 </h1>
-	 {/* Teacher toggle for pending posts */}
-	 {isTeacher && (
+		 {/* Admin-only toggle for pending posts */}
+		 {isAdmin && (
 	   <label className="flex items-center gap-2 text-blue-700 font-semibold bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
 		 <input
 		   type="checkbox"
@@ -312,7 +306,7 @@ const loadPosts = async (category?: string) => {
 		   }}
 		   className="accent-blue-600"
 		 />
-		 Show pending/unvalidated posts
+		 Show pending/unvalidated posts (Admin)
 	   </label>
 	 )}
    </div>
@@ -366,7 +360,7 @@ const loadPosts = async (category?: string) => {
 									</span>{" "}
 									• by{" "}
 									<span className="text-blue-600 font-semibold">
-										{getAuthorDisplay(post.anonymous, post.author_id, isTeacher)}
+										{getAuthorDisplay(post.anonymous, post.author_id, isAdmin)}
 									</span>{" "}
 									•{" "}
 									<span className="text-gray-500">{new Date(post.upload_time).toLocaleDateString()}</span>
@@ -394,7 +388,7 @@ const loadPosts = async (category?: string) => {
 											post.replies.map((reply) => (
 												<div key={reply.reply_id} className="mb-2">
 													<span className="text-blue-600 font-semibold">
-														{getAuthorDisplay(reply.anonymous, reply.author_id, isTeacher)}:
+														{getAuthorDisplay(reply.anonymous, reply.author_id, isAdmin)}:
 													</span>{" "}
 													<span className="text-gray-700">
 														{reply.content}

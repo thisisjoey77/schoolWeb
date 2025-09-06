@@ -41,3 +41,29 @@ export async function postReply(replyData) {
     })
   });
 }
+
+/**
+ * Block a reply (set validated=0)
+ */
+export async function blockReply(replyId, requesterSchoolId) {
+  return await apiRequest('/block-reply', {
+    method: 'POST',
+    body: JSON.stringify({
+      reply_id: replyId,
+      requester_school_id: requesterSchoolId
+    })
+  });
+}
+
+/**
+ * Validate a reply (set validated=1)
+ */
+export async function validateReply(replyId, requesterSchoolId) {
+  return await apiRequest('/validate-reply', {
+    method: 'POST',
+    body: JSON.stringify({
+      reply_id: replyId,
+      requester_school_id: requesterSchoolId
+    })
+  });
+}

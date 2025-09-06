@@ -12,6 +12,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isTeacher, setIsTeacher] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -30,6 +31,10 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
         if (userData.user_type === 'teacher') {
           console.log('Navbar: User already marked as teacher in localStorage');
           setIsTeacher(true);
+        }
+        // Admin flag only trusted if explicitly set during admin login
+        if (userData.is_admin === true || userData.user_type === 'admin') {
+          setIsAdmin(true);
         }
         
         // Always check teacher status from backend to be sure
@@ -74,6 +79,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
     }
   };
 
+  // NOTE: Removed automatic admin probing because teachers also have access to pending-content.
+  // Admin status now only comes from explicit admin login response (userData.is_admin).
+
   // Auto-collapse on mobile
   useEffect(() => {
     const handleResize = () => {
@@ -103,11 +111,35 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
     { href: '/profile', label: 'Profile' },
     { href: '/new-post', label: 'New Post' },
     { href: '/category', label: 'Categories' },
-    ...(isTeacher ? [
-      { href: '/classes', label: 'Classes' },
-      { href: '/search-student', label: 'Search Student' }
-    ] : []),
+    ...((isTeacher) ? [ { href: '/classes', label: 'Classes' } ] : []),
+    ...((isTeacher || isAdmin) ? [ { href: '/search-student', label: 'Search Student' } ] : []),
+    ...(isAdmin ? [ { href: '/pending-posts', label: 'Pending Posts' } ] : []),
   ];
+
+  // Role color helpers (explicit class strings to satisfy Tailwind JIT) 
+  const roleActiveClasses = isAdmin
+    ? 'bg-green-100 text-green-700 border-r-4 border-green-600'
+    : isTeacher
+    ? 'bg-red-100 text-red-700 border-r-4 border-red-600'
+    : 'bg-blue-100 text-blue-700 border-r-4 border-blue-600';
+  const roleHoverClasses = isAdmin
+    ? 'text-gray-700 hover:bg-green-50 hover:text-green-700'
+    : isTeacher
+    ? 'text-gray-700 hover:bg-red-50 hover:text-red-700'
+    : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700';
+  const roleCollapsedActive = isAdmin
+    ? 'bg-green-100 text-green-700 border-r-4 border-green-600'
+    : isTeacher
+    ? 'bg-red-100 text-red-700 border-r-4 border-red-600'
+    : 'bg-blue-100 text-blue-700 border-r-4 border-blue-600';
+  const userCardBase = isAdmin
+    ? 'bg-green-50 border border-green-200 hover:bg-green-100 hover:border-green-300'
+    : isTeacher
+    ? 'bg-red-50 border border-red-200 hover:bg-red-100 hover:border-red-300'
+    : 'bg-blue-50 border border-blue-200 hover:bg-blue-100 hover:border-blue-300';
+  const userAvatarBg = isAdmin ? 'bg-green-600 hover:bg-green-700' : isTeacher ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700';
+  const userNameColor = isAdmin ? 'text-green-700' : isTeacher ? 'text-red-700' : 'text-blue-700';
+  const userRoleColor = isAdmin ? 'text-green-600 font-bold' : isTeacher ? 'text-red-600 font-bold' : 'text-blue-600';
 
   return (
     <>
@@ -179,7 +211,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                   key={item.href}
                   className={`flex items-center gap-3 px-3 py-3 my-1 rounded-lg transition-all duration-200 cursor-default ${
                     isActive 
-                      ? 'bg-blue-100 text-blue-700 border-r-4 border-blue-600' 
+                      ? roleCollapsedActive
                       : 'text-gray-700'
                   }`}
                 >
@@ -193,10 +225,10 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-3 my-1 rounded-lg transition-all duration-200 ${
+                className={`flex items-center gap-3 px-3 py-3 my-1 rounded-lg transition-all duration-200 cursor-pointer ${
                   isActive 
-                    ? 'bg-blue-100 text-blue-700 border-r-4 border-blue-600' 
-                    : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+                    ? roleActiveClasses 
+                    : roleHoverClasses
                 }`}
               >
                 <span className="text-xl min-w-[1.5rem] text-center"></span>
@@ -210,15 +242,15 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
         {!isCollapsed && currentUser && (
           <div className="absolute bottom-4 left-0 right-0 px-4">
             <div
-              className={`bg-blue-50 rounded-lg p-3 border border-blue-200 cursor-pointer transition-all duration-300 hover:bg-blue-100 hover:border-blue-300 hover:shadow-lg ${isTeacher ? 'hover:shadow-red-200/70' : 'hover:shadow-blue-200/50'}`}
+              className={`${userCardBase} rounded-lg p-3 cursor-pointer transition-all duration-300 hover:shadow-lg ${isAdmin ? 'hover:shadow-green-200/70' : isTeacher ? 'hover:shadow-red-200/70' : 'hover:shadow-blue-200/50'}`}
               onClick={() => router.push('/profile')}
             >
               <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 ${isTeacher ? 'bg-red-600' : 'bg-blue-600'} rounded-full flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 ${isTeacher ? 'hover:bg-red-700' : 'hover:bg-blue-700'} hover:shadow-md`}>
+                <div className={`w-8 h-8 ${userAvatarBg} rounded-full flex items-center justify-center text-white font-semibold text-sm transition-all duration-300 hover:shadow-md`}>
                   {(currentUser?.given_name || currentUser?.firstName || currentUser?.name || currentUser?.user_id || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${isTeacher ? 'text-red-700' : 'text-blue-700'} truncate`}>
+                  <p className={`text-sm font-medium ${userNameColor} truncate`}>
                     {currentUser?.given_name && currentUser?.surname 
                       ? `${currentUser.given_name} ${currentUser.surname}`
                       : currentUser?.firstName && currentUser?.lastName
@@ -232,8 +264,8 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                       : 'User'
                     }
                   </p>
-                  <p className={`text-xs ${isTeacher ? 'text-red-600 font-bold' : 'text-blue-600'}`} key={isTeacher ? 'teacher' : 'student'}>
-                    {isTeacher ? 'Teacher' : 'Student'}
+                  <p className={`text-xs ${userRoleColor}`} key={isAdmin ? 'admin' : isTeacher ? 'teacher' : 'student'}>
+                    {isAdmin ? 'Admin' : isTeacher ? 'Teacher' : 'Student'}
                   </p>
                 </div>
               </div>

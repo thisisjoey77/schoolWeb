@@ -26,22 +26,11 @@ interface StudentPost {
   reply_count?: number;
 }
 
-function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
-  // Convert number to boolean if needed (database stores as tinyint)
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, _isTeacher: boolean) {
   const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
-  
-  // If not anonymous, always show author
-  if (!anonymous) {
-    return authorId;
-  }
-  
-  // If anonymous and current user is teacher, show actual author with indicator
-  if (anonymous && isTeacher) {
-    return `${authorId} (Posted Anonymously)`;
-  }
-  
-  // If anonymous and current user is not teacher, show Anonymous
-  return 'Anonymous';
+  if (!anonymous) return authorId;
+  // Viewing a specific student's profile: show their id with marker.
+  return `${authorId} (Posted Anonymously)`;
 }
 
 function getPreview(text: string, maxLength = 200) {

@@ -8,22 +8,10 @@ import { getPostReplies, postReply } from "../../api/replies";
 import { getPost, blockPost, validatePost } from "../../api/posts";
 // Removed import of currentUser; will load from localStorage
 
-function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
-	// Convert number to boolean if needed (database stores as tinyint)
-	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
-	
-	// If not anonymous, always show author
-	if (!anonymous) {
-		return authorId;
-	}
-	
-	// If anonymous and current user is teacher, show actual author with indicator
-	if (anonymous && isTeacher) {
-		return `${authorId} (Posted Anonymously)`;
-	}
-	
-	// If anonymous and current user is not teacher, show Anonymous
-	return 'Anonymous';
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isAdminView: boolean) {
+  const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
+  if (!anonymous) return authorId;
+  return isAdminView ? `${authorId} (Anon)` : 'Anonymous';
 }
 
 
@@ -53,6 +41,7 @@ export default function PostDetail() {
   const [submittingReply, setSubmittingReply] = useState(false);
   const [showAnonymousPopup, setShowAnonymousPopup] = useState(false);
   const [isTeacher, setIsTeacher] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [teacherLoading, setTeacherLoading] = useState(true);
   const [blockingPost, setBlockingPost] = useState(false);
   const [validatingPost, setValidatingPost] = useState(false);
@@ -60,10 +49,20 @@ export default function PostDetail() {
   // Check if user is a teacher using localStorage data
   useEffect(() => {
     setTeacherLoading(true);
-    if (currentUser && currentUser.is_teacher !== undefined) {
-      setIsTeacher(currentUser.is_teacher === true);
+    if (currentUser) {
+      if (currentUser.is_teacher !== undefined) {
+        setIsTeacher(currentUser.is_teacher === true);
+      } else {
+        setIsTeacher(false);
+      }
+      if (currentUser.is_admin || currentUser.user_type === 'admin') {
+        setIsAdmin(true);
+      } else {
+        setIsAdmin(false);
+      }
     } else {
       setIsTeacher(false);
+      setIsAdmin(false);
     }
     setTeacherLoading(false);
   }, [currentUser]);
@@ -209,7 +208,7 @@ export default function PostDetail() {
   };
 
   const handleBlockPost = async () => {
-    if (!currentUser || !isTeacher || !post) return;
+  if (!currentUser || !(isTeacher || isAdmin) || !post) return;
     
     const confirmBlock = window.confirm('Are you sure you want to block this post? This will set its validation status to 0.');
     if (!confirmBlock) return;
@@ -242,7 +241,7 @@ export default function PostDetail() {
   };
 
   const handleValidatePost = async () => {
-    if (!currentUser || !isTeacher || !post) return;
+  if (!currentUser || !(isTeacher || isAdmin) || !post) return;
     
     const confirmValidate = window.confirm('Are you sure you want to validate this post? This will make it visible to all students.');
     if (!confirmValidate) return;
@@ -367,7 +366,7 @@ export default function PostDetail() {
               </div>
               
               {/* Teacher Block Button */}
-              {isTeacher && post.validated === 1 && (
+              {(isTeacher || isAdmin) && post.validated === 1 && (
                 <button
                   onClick={handleBlockPost}
                   disabled={blockingPost}
@@ -384,7 +383,7 @@ export default function PostDetail() {
               )}
               
               {/* Teacher Validate Button - new button for validating posts */}
-              {isTeacher && post.validated === 0 && (
+              {(isTeacher || isAdmin) && post.validated === 0 && (
                 <button
                   onClick={handleValidatePost}
                   disabled={validatingPost}
@@ -405,7 +404,7 @@ export default function PostDetail() {
             
             <div className="text-gray-600 mb-4">
               by <span className="text-blue-600 font-semibold">
-                {getAuthorDisplay(post.anonymous, post.author_id, isTeacher)}
+                {getAuthorDisplay(post.anonymous, post.author_id, isAdmin)}
               </span> • 
               <span className="text-gray-500 ml-1">
                 {new Date(post.upload_time).toLocaleDateString()}
@@ -430,7 +429,7 @@ export default function PostDetail() {
                     <div key={reply.reply_id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                       <div className="text-gray-600 text-sm mb-2">
                         <span className="text-blue-600 font-semibold">
-                          {getAuthorDisplay(reply.anonymous, reply.author_id, isTeacher)}
+                          {getAuthorDisplay(reply.anonymous, reply.author_id, isAdmin)}
                         </span> • 
                         <span className="text-gray-500 ml-1">
                           {new Date(reply.upload_time).toLocaleDateString()}

@@ -31,6 +31,7 @@ export default function SearchStudent() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isTeacher, setIsTeacher] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [teacherLoading, setTeacherLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<SearchStudent[]>([]);
@@ -42,7 +43,11 @@ export default function SearchStudent() {
     if (typeof window !== "undefined") {
       const userStr = localStorage.getItem("currentUser");
       if (userStr) {
-        setCurrentUser(JSON.parse(userStr));
+        const u = JSON.parse(userStr);
+        setCurrentUser(u);
+        if (u.is_admin || u.user_type === 'admin') {
+          setIsAdmin(true);
+        }
       } else {
         router.replace("/login");
       }
@@ -51,10 +56,16 @@ export default function SearchStudent() {
 
   // Check if user is a teacher using API call
   useEffect(() => {
-    if (currentUser && currentUser.school_id) {
+    if (!currentUser) return;
+    // If admin, skip teacher check
+    if (isAdmin) {
+      setTeacherLoading(false);
+      return;
+    }
+    if (currentUser.school_id) {
       checkTeacherStatus(currentUser.school_id);
     }
-  }, [currentUser]);
+  }, [currentUser, isAdmin]);
 
   const checkTeacherStatus = async (schoolId: string) => {
     try {
@@ -135,12 +146,12 @@ export default function SearchStudent() {
     );
   }
 
-  if (!isTeacher) {
+  if (!(isTeacher || isAdmin)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-gray-600">This page is only accessible to teachers.</p>
+          <p className="text-gray-600">This page is only accessible to teachers and admins.</p>
         </div>
       </div>
     );
@@ -163,7 +174,7 @@ export default function SearchStudent() {
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-blue-700 mb-2">Search Student</h1>
             <p className="text-gray-800">Search for students by their ID number to view their profiles and activity.</p>
-            <span className="text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded mt-2 inline-block">(Teachers only)</span>
+            <span className="text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded mt-2 inline-block">(Teachers & Admins)</span>
           </div>
 
           {/* Search Section */}
@@ -187,7 +198,7 @@ export default function SearchStudent() {
                 <button
                   onClick={searchStudentsHandler}
                   disabled={searchLoading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   {searchLoading ? (
                     <>
@@ -254,7 +265,7 @@ export default function SearchStudent() {
                         </div>
                         <button
                           onClick={() => handleViewProfile(student)}
-                          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer"
                         >
                           View Profile
                         </button>

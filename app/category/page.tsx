@@ -88,22 +88,10 @@ function getPreview(text: string, maxLines = 2) {
   return lines.slice(0, maxLines).join(' ') + (lines.length > maxLines ? '...' : '');
 }
 
-function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
-	// Convert number to boolean if needed (database stores as tinyint)
-	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
-	
-	// If not anonymous, always show author
-	if (!anonymous) {
-		return authorId;
-	}
-	
-	// If anonymous and current user is teacher, show actual author with indicator
-	if (anonymous && isTeacher) {
-		return `${authorId} (Posted Anonymously)`;
-	}
-	
-	// If anonymous and current user is not teacher, show Anonymous
-	return 'Anonymous';
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isAdminView: boolean) {
+  const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
+  if (!anonymous) return authorId;
+  return isAdminView ? `${authorId} (Anon)` : 'Anonymous';
 }
 
 
@@ -117,6 +105,7 @@ export default function Categories() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showPending, setShowPending] = useState<boolean>(false); // Teacher toggle for pending posts
   const [isTeacher, setIsTeacher] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [teacherLoading, setTeacherLoading] = useState<boolean>(true);
   const router = useRouter();
 
@@ -125,7 +114,11 @@ export default function Categories() {
     if (typeof window !== "undefined") {
       const userStr = localStorage.getItem("currentUser");
       if (userStr) {
-        setCurrentUser(JSON.parse(userStr));
+        const u = JSON.parse(userStr);
+        setCurrentUser(u);
+        if (u.is_admin || u.user_type === 'admin') {
+          setIsAdmin(true);
+        }
       }
     }
   }, []);
@@ -153,7 +146,7 @@ export default function Categories() {
       setLoading(true);
       const requesterSchoolId = currentUser?.school_id;
       // For teachers use the toggle value, for non-teachers use false (don't show pending)
-      const showPendingParam = isTeacher ? showPending : false;
+  const showPendingParam = (isTeacher || isAdmin) ? showPending : false;
       console.log('Loading posts for class:', className, 'showPending:', showPendingParam, 'isTeacher:', isTeacher);
       const response: any = await getPostsByCategory(className, requesterSchoolId, showPendingParam);
       if (response.status === 'success') {
@@ -183,7 +176,7 @@ export default function Categories() {
     try {
       // Load counts for all classes in parallel
       const requesterSchoolId = currentUser?.school_id;
-      const showPendingParam = isTeacher ? showPending : false;
+  const showPendingParam = (isTeacher || isAdmin) ? showPending : false;
       console.log('Loading post counts for subject:', subject, 'showPending:', showPendingParam, 'isTeacher:', isTeacher);
       const countPromises = classes.map(async (className) => {
         try {
@@ -227,8 +220,8 @@ export default function Categories() {
         <main className="max-w-6xl mx-auto p-6 pointer-events-auto">
           <h1 className="text-3xl font-bold text-blue-700 mb-6">Browse by Category</h1>
 
-          {/* Teacher toggle for pending posts */}
-          {!teacherLoading && isTeacher && (
+          {/* Admin-only toggle for pending posts */}
+          {!teacherLoading && isAdmin && (
             <div className="mb-6 flex items-center gap-4">
               <label className="flex items-center cursor-pointer select-none">
                 <input
@@ -250,9 +243,9 @@ export default function Categories() {
                   className="form-checkbox h-5 w-5 text-blue-600"
                   style={{ accentColor: '#f59e42' }}
                 />
-                <span className="ml-2 text-blue-700 font-medium">Show Pending (Unvalidated) Posts</span>
+                <span className="ml-2 text-blue-700 font-medium">Show Pending (Unvalidated) Posts (Admin)</span>
               </label>
-              <span className="text-xs text-gray-500">(Teachers only)</span>
+              <span className="text-xs text-gray-500">(Admins Only)</span>
             </div>
           )}
 
@@ -374,7 +367,7 @@ export default function Categories() {
                       </div>
                       
                       <div className="text-gray-600 text-sm mb-3">
-                        by <span className="text-blue-600 font-semibold">{getAuthorDisplay(post.anonymous, post.author_id, isTeacher)}</span> • 
+                        by <span className="text-blue-600 font-semibold">{getAuthorDisplay(post.anonymous, post.author_id, isAdmin)}</span> • 
                         <span className="text-gray-500 ml-1">{new Date(post.upload_time).toLocaleDateString()}</span>
                       </div>
                       
@@ -402,7 +395,7 @@ export default function Categories() {
                           <h4 className="text-sm font-semibold text-gray-700 mb-2">Recent Replies:</h4>
                           {post.replies.slice(0, 3).map((reply) => (
                             <div key={reply.reply_id} className="text-sm text-gray-600 mb-1">
-                              <span className="text-blue-600 font-medium">{getAuthorDisplay(reply.anonymous, reply.author_id, isTeacher)}:</span> {reply.content}
+                              <span className="text-blue-600 font-medium">{getAuthorDisplay(reply.anonymous, reply.author_id, isAdmin)}:</span> {reply.content}
                             </div>
                           ))}
                           {post.replies.length > 3 && (

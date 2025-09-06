@@ -6,22 +6,10 @@ import { useRouter } from 'next/navigation';
 import { getMyPosts } from "../api/posts";
 import { PostWithReplies } from "../types";
 
-function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isTeacher: boolean) {
-	// Convert number to boolean if needed (database stores as tinyint)
-	const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
-	
-	// If not anonymous, always show author
-	if (!anonymous) {
-		return authorId;
-	}
-	
-	// If anonymous and current user is teacher, show actual author with indicator
-	if (anonymous && isTeacher) {
-		return `${authorId} (Posted Anonymously)`;
-	}
-	
-	// If anonymous and current user is not teacher, show Anonymous
-	return 'Anonymous';
+function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isAdminView: boolean) {
+  const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
+  if (!anonymous) return authorId;
+  return isAdminView ? `${authorId} (Anon)` : `${authorId} (Posted Anonymously)`; // Owner context shows author regardless
 }
 
 
