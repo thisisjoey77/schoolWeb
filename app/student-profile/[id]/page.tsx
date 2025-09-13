@@ -45,6 +45,7 @@ export default function StudentProfile() {
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isTeacher, setIsTeacher] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [teacherLoading, setTeacherLoading] = useState<boolean>(true);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [studentPosts, setStudentPosts] = useState<StudentPost[]>([]);
@@ -56,7 +57,11 @@ export default function StudentProfile() {
     if (typeof window !== "undefined") {
       const userStr = localStorage.getItem("currentUser");
       if (userStr) {
-        setCurrentUser(JSON.parse(userStr));
+        const u = JSON.parse(userStr);
+        setCurrentUser(u);
+        if (u.is_admin || u.user_type === 'admin') {
+          setIsAdmin(true);
+        }
       } else {
         router.replace("/login");
       }
@@ -65,10 +70,16 @@ export default function StudentProfile() {
 
   // Check if user is a teacher using API call
   useEffect(() => {
-    if (currentUser && currentUser.school_id) {
+    if (!currentUser) return;
+    // If admin, skip teacher check
+    if (isAdmin) {
+      setTeacherLoading(false);
+      return;
+    }
+    if (currentUser.school_id) {
       checkTeacherStatus(currentUser.school_id);
     }
-  }, [currentUser]);
+  }, [currentUser, isAdmin]);
 
   const checkTeacherStatus = async (schoolId: string) => {
     try {
@@ -96,10 +107,10 @@ export default function StudentProfile() {
 
   // Load student profile
   useEffect(() => {
-    if (studentId && isTeacher) {
+    if (studentId && (isTeacher || isAdmin)) {
       loadStudentProfile();
     }
-  }, [studentId, isTeacher]);
+  }, [studentId, isTeacher, isAdmin]);
 
   // Load student posts after profile is loaded
   useEffect(() => {
@@ -111,7 +122,8 @@ export default function StudentProfile() {
   const loadStudentProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(`/get-student-info?school_id=${studentId}`)}`);
+  const endpoint = `/get-student-info?school_id=${encodeURIComponent(studentId)}&requester_school_id=${encodeURIComponent(currentUser?.school_id || '')}`;
+  const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}`);
       const data = await response.json();
       
       if (data.status === 'success' && data.student) {
@@ -185,12 +197,12 @@ export default function StudentProfile() {
     );
   }
 
-  if (!isTeacher) {
+  if (!(isTeacher || isAdmin)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
-          <p className="text-gray-600">This page is only accessible to teachers.</p>
+          <p className="text-gray-600">This page is only accessible to teachers and admins.</p>
         </div>
       </div>
     );

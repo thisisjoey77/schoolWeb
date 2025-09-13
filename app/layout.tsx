@@ -13,8 +13,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KISJ Forum",
+  title: {
+    default: "Dragon's Den",
+    template: "%s | Dragon's Den",
+  },
   description: "KIS Jeju School Forum - Connect, Share, and Learn Together",
+  icons: {
+    icon: [
+      { url: "/LOGO.png", sizes: "32x32" },
+      { url: "/LOGO.png", sizes: "64x64" },
+      { url: "/LOGO.png", sizes: "180x180" },
+    ],
+    shortcut: "/LOGO.png",
+    apple: "/LOGO.png",
+  },
 };
 
 export default function RootLayout({

@@ -96,13 +96,18 @@ export default function SearchStudent() {
       alert('Please enter a student ID to search.');
       return;
     }
+    if (!currentUser?.school_id) {
+      alert('Missing your school ID. Please re-login.');
+      return;
+    }
 
     setSearchLoading(true);
     setHasSearched(true);
     
     try {
       // Try to get student info directly by school_id (if it's a direct ID search)
-      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(`/get-student-info?school_id=${searchQuery.trim()}`)}`);
+  const endpoint = `/get-student-info?school_id=${encodeURIComponent(searchQuery.trim())}&requester_school_id=${encodeURIComponent(currentUser.school_id)}`;
+  const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}`);
       const data = await response.json();
       
       if (data.status === 'success' && data.student) {
