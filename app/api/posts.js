@@ -115,8 +115,9 @@ export async function getClasses(schoolId) {
  * @param {string} schoolId - Student's school ID
  * @returns {Promise<Object>} Student info response
  */
-export async function getStudentInfo(schoolId) {
-  return await apiRequest(`/get-student-info?school_id=${schoolId}`, {
+export async function getStudentInfo(schoolId, requesterSchoolId = null) {
+  const q = requesterSchoolId ? `&requester_school_id=${encodeURIComponent(requesterSchoolId)}` : '';
+  return await apiRequest(`/get-student-info?school_id=${schoolId}${q}`, {
     method: 'GET'
   });
 }
@@ -137,8 +138,9 @@ export async function getStudentPostCount(authorId) {
  * @param {string} name - Student name to search for
  * @returns {Promise<Object>} Search results response
  */
-export async function searchStudents(name) {
-  return await apiRequest(`/search-students?name=${encodeURIComponent(name)}`, {
+export async function searchStudents(name, requesterSchoolId = null) {
+  const q = requesterSchoolId ? `&requester_school_id=${encodeURIComponent(requesterSchoolId)}` : '';
+  return await apiRequest(`/search-students?name=${encodeURIComponent(name)}${q}`, {
     method: 'GET'
   });
 }

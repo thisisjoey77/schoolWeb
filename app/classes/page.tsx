@@ -111,6 +111,7 @@ export default function Classes() {
 
   const loadStudentsForClass = async (classItem: ClassItem) => {
     if (!classItem.students) return;
+    if (!currentUser?.school_id) return;
     
     setLoadingStudents(prev => new Set(prev).add(classItem.class_id));
     
@@ -119,10 +120,11 @@ export default function Classes() {
       const studentIds = classItem.students.split(',').map((id: string) => id.trim()).filter((id: string) => id);
       const students: Student[] = [];
       
-      for (const schoolId of studentIds) {
+    for (const schoolId of studentIds) {
         try {
           // Get student info
-          const studentResponse = await fetch(`/api/proxy?endpoint=${encodeURIComponent(`/get-student-info?school_id=${schoolId}`)}`);
+      const endpoint = `/get-student-info?school_id=${schoolId}&requester_school_id=${encodeURIComponent(currentUser.school_id)}`;
+      const studentResponse = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}`);
           const studentData = await studentResponse.json();
           
           // Get post count
@@ -278,10 +280,14 @@ export default function Classes() {
       setSearchResults([]);
       return;
     }
+    if (!currentUser?.school_id) {
+      setSearchResults([]);
+      return;
+    }
     
     setSearchLoading(true);
     try {
-      const response = await searchStudents(studentSearchQuery.trim()) as ApiResponse;
+  const response = await searchStudents(studentSearchQuery.trim(), currentUser.school_id) as ApiResponse;
       if (response.status === 'success') {
         setSearchResults(response.students || []);
       } else {
