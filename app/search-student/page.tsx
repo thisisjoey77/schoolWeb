@@ -94,7 +94,7 @@ export default function SearchStudent() {
 
   const searchStudentsHandler = async () => {
     if (!searchQuery.trim()) {
-      alert('Please enter a student ID to search.');
+      alert('Please enter something to search (ID, username, or name).');
       return;
     }
     if (!currentUser?.school_id) {
@@ -104,28 +104,20 @@ export default function SearchStudent() {
 
     setSearchLoading(true);
     setHasSearched(true);
-    
+
     try {
-      // Try to get student info directly by school_id (if it's a direct ID search)
-  const endpoint = `/get-student-info?school_id=${encodeURIComponent(searchQuery.trim())}&requester_school_id=${encodeURIComponent(currentUser.school_id)}`;
-  const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}`);
-      const data = await response.json();
-      
-      if (data.status === 'success' && data.student) {
-        // Convert the single student response to our expected format
-        const student: SearchStudent = {
-          school_id: data.student.school_id,
-          given_name: data.student.given_name,
-          surname: data.student.surname,
-          user_id: data.student.user_id,
-          email: data.student.email,
-          class: data.student.class
-        };
-        setSearchResults([student]);
+      const endpoint = `/search-students?name=${encodeURIComponent(
+        searchQuery.trim()
+      )}&requester_school_id=${encodeURIComponent(currentUser.school_id)}`;
+
+      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}`);
+      const data: ApiResponse = await response.json();
+
+      if (data.status === 'success' && data.students && data.students.length > 0) {
+        setSearchResults(data.students);
       } else {
-        console.log('No student found with that ID:', data.message);
+        console.log('No students found:', data.message);
         setSearchResults([]);
-        // Don't show alert for no results, just show the "no results" message
       }
     } catch (error) {
       console.error('Error searching students:', error);
@@ -179,7 +171,9 @@ export default function SearchStudent() {
         <main className="max-w-4xl mx-auto p-6 pointer-events-auto">
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-blue-700 mb-2">Search Student</h1>
-            <p className="text-gray-800">Search for students by their ID number to view their profiles and activity.</p>
+            <p className="text-gray-800">
+              Search for students by their ID number, username, or name to view their profiles and activity.
+            </p>
             <span className="text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded mt-2 inline-block">(Teachers & Admins)</span>
           </div>
 
@@ -189,14 +183,14 @@ export default function SearchStudent() {
             <div className="flex gap-4">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Student ID
+                  Student ID / Username / Name
                 </label>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && searchStudentsHandler()}
-                  placeholder="Enter student ID number..."
+                  placeholder="Enter student ID, username, or name..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
                 />
               </div>
