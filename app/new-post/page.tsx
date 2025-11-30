@@ -3,6 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../../components/Navbar';
 import { allPosts } from '../centralData';
+import { isEnglishOnlyText } from '../utils/languageValidation';
 // Removed import of currentUser; will load from localStorage
 // Import API function
 import { postUpload } from '../api/posts.js';
@@ -103,16 +104,15 @@ function NewPostContent() {
 
   // Load current user from localStorage
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const userStr = localStorage.getItem('currentUser');
-      if (userStr) {
-        try {
-          setCurrentUser(JSON.parse(userStr));
-        } catch (e) {
-          setCurrentUser(null);
-        }
-      }
-    }
+	if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+	const userStr = window.localStorage.getItem('currentUser');
+	if (userStr) {
+	  try {
+		setCurrentUser(JSON.parse(userStr));
+	  } catch (e) {
+		setCurrentUser(null);
+	  }
+	}
   }, []);
 
 
@@ -121,6 +121,11 @@ function NewPostContent() {
 
     if (!title.trim() || !content.trim()) {
       alert('Please fill in all required fields.');
+      return;
+    }
+    // Language validation: only allow English, symbols, and emojis
+    if (!isEnglishOnlyText(title) || !isEnglishOnlyText(content)) {
+      alert('Posts must be written in English only. Please remove any non-English characters (e.g., Korean, Japanese, Chinese).');
       return;
     }
     if (!currentUser || !currentUser.user_id) {

@@ -123,49 +123,60 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
 
   console.log('Navbar: Current isTeacher state:', isTeacher);
 
-  // Load user info from localStorage
+  // Track client mount to avoid any localStorage usage during SSR
   useEffect(() => {
-  setHasMounted(true);
-    if (typeof window !== "undefined") {
-      const userStr = localStorage.getItem("currentUser");
-      if (userStr) {
-        const userData = JSON.parse(userStr);
-        console.log('Navbar: Loaded user data from localStorage:', userData);
-        setCurrentUser(userData);
-        
-        // Check if user is already marked as teacher in localStorage
-        if (userData.user_type === 'teacher') {
-          console.log('Navbar: User already marked as teacher in localStorage');
-          setIsTeacher(true);
-        }
-        // Admin flag only trusted if explicitly set during admin login
-        if (userData.is_admin === true || userData.user_type === 'admin') {
-          setIsAdmin(true);
-        }
-        
-        // Always check teacher status from backend to be sure
-        if (userData.school_id) {
-          console.log('Navbar: Checking teacher status for school_id:', userData.school_id);
-          checkIfTeacher(userData.school_id);
-        }
-      } else {
-        console.log('Navbar: No user data found in localStorage');
-      }
-    }
+	if (typeof window !== 'undefined') {
+		setHasMounted(true);
+	}
   }, []);
 
-  // After mount, load the persisted sidebar state and respect small screens
+  // Load user info from localStorage (client-only)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const saved = localStorage.getItem('sidebarCollapsed');
-      if (saved !== null) {
-        setIsCollapsed(saved === 'true');
-      } else if (window.innerWidth < 768) {
-        setIsCollapsed(true);
-      }
-    } catch {}
-  }, []);
+	if (!hasMounted) return;
+	if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+	try {
+	  const userStr = window.localStorage.getItem('currentUser');
+	  if (userStr) {
+		const userData = JSON.parse(userStr);
+		console.log('Navbar: Loaded user data from localStorage:', userData);
+		setCurrentUser(userData);
+		// Check if user is already marked as teacher in localStorage
+		if (userData.user_type === 'teacher') {
+		  console.log('Navbar: User already marked as teacher in localStorage');
+		  setIsTeacher(true);
+		}
+		// Admin flag only trusted if explicitly set during admin login
+		if (userData.is_admin === true || userData.user_type === 'admin') {
+		  setIsAdmin(true);
+		}
+		// Always check teacher status from backend to be sure
+		if (userData.school_id) {
+		  console.log('Navbar: Checking teacher status for school_id:', userData.school_id);
+		  checkIfTeacher(userData.school_id);
+		}
+	  } else {
+		console.log('Navbar: No user data found in localStorage');
+	  }
+	} catch (e) {
+	  console.error('Navbar: Error accessing localStorage for currentUser', e);
+	}
+  }, [hasMounted]);
+
+  // After mount, load the persisted sidebar state and respect small screens (client-only)
+  useEffect(() => {
+	if (!hasMounted) return;
+	if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+	try {
+	  const saved = window.localStorage.getItem('sidebarCollapsed');
+	  if (saved !== null) {
+		setIsCollapsed(saved === 'true');
+	  } else if (window.innerWidth < 768) {
+		setIsCollapsed(true);
+	  }
+	} catch (e) {
+	  console.error('Navbar: Error accessing localStorage for sidebarCollapsed', e);
+	}
+  }, [hasMounted]);
 
   const checkIfTeacher = async (schoolId: string) => {
     try {
@@ -178,8 +189,8 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
         console.log('Navbar: User confirmed as teacher, updating state');
         setIsTeacher(true);
         // Also set user_type in localStorage for consistency
-        if (typeof window !== 'undefined') {
-          const userStr = localStorage.getItem('currentUser');
+        if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+          const userStr = window.localStorage.getItem('currentUser');
           if (userStr) {
             const userData = JSON.parse(userStr);
             userData.user_type = 'teacher';
@@ -213,9 +224,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
 
   // Persist user preference whenever it changes
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
     try {
-      localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
+      window.localStorage.setItem('sidebarCollapsed', isCollapsed ? 'true' : 'false');
     } catch {}
   }, [isCollapsed]);
 

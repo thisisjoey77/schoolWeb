@@ -69,13 +69,12 @@ export default function Classes() {
 
   // Load user info from localStorage
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const userStr = localStorage.getItem("currentUser");
-      if (userStr) {
-        setCurrentUser(JSON.parse(userStr));
-      } else {
-        router.replace("/login");
-      }
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+    const userStr = window.localStorage.getItem("currentUser");
+    if (userStr) {
+      setCurrentUser(JSON.parse(userStr));
+    } else {
+      router.replace("/login");
     }
   }, [router]);
 

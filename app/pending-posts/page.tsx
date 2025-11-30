@@ -15,10 +15,9 @@ export default function PendingPostsPage(){
   const [error,setError]=useState<string>('');
 
   useEffect(()=>{
-    if(typeof window!=="undefined"){
-      const userStr=localStorage.getItem('currentUser');
-      if(userStr){ try { setCurrentUser(JSON.parse(userStr)); } catch { setCurrentUser(null);} }
-    }
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+    const userStr = window.localStorage.getItem('currentUser');
+    if(userStr){ try { setCurrentUser(JSON.parse(userStr)); } catch { setCurrentUser(null);} }
   },[]);
 
   useEffect(()=>{ if(!currentUser) return; loadPending(); },[currentUser]);

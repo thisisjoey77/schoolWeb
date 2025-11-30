@@ -268,3 +268,19 @@ export async function getPendingContent(requesterSchoolId) {
     method: 'GET'
   });
 }
+
+/**
+ * Add a strike to a student (admin only)
+ * @param {string} schoolId - Student's school ID
+ * @param {string} requesterSchoolId - Admin's school ID
+ * @returns {Promise<Object>} Add strike response
+ */
+export async function addStrike(schoolId, requesterSchoolId) {
+  return await apiRequest('/add-strike', {
+    method: 'POST',
+    body: JSON.stringify({
+      school_id: schoolId,
+      requester_school_id: requesterSchoolId
+    })
+  });
+}

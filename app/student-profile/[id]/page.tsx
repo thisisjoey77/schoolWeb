@@ -13,6 +13,7 @@ interface StudentProfile {
   created_at?: string;
   post_count?: number;
   reply_count?: number;
+  strikes?: number;
 }
 
 interface StudentPost {
@@ -51,21 +52,21 @@ export default function StudentProfile() {
   const [studentPosts, setStudentPosts] = useState<StudentPost[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [postsLoading, setPostsLoading] = useState<boolean>(true);
+  const [updatingStrike, setUpdatingStrike] = useState<boolean>(false);
 
   // Load user info from localStorage
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const userStr = localStorage.getItem("currentUser");
-      if (userStr) {
-        const u = JSON.parse(userStr);
-        setCurrentUser(u);
-        if (u.is_admin || u.user_type === 'admin') {
-          setIsAdmin(true);
-        }
-      } else {
-        router.replace("/login");
-      }
-    }
+	if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+	const userStr = window.localStorage.getItem("currentUser");
+	if (userStr) {
+	  const u = JSON.parse(userStr);
+	  setCurrentUser(u);
+	  if (u.is_admin || u.user_type === 'admin') {
+		setIsAdmin(true);
+	  }
+	} else {
+	  router.replace("/login");
+	}
   }, [router]);
 
   // Check if user is a teacher using API call
@@ -137,6 +138,45 @@ export default function StudentProfile() {
       alert('Failed to load student profile. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddStrike = async () => {
+    if (!studentProfile || !currentUser) return;
+
+    if (typeof studentProfile.strikes === 'number' && studentProfile.strikes >= 3) {
+      alert('This student already has the maximum number of strikes (3).');
+      return;
+    }
+
+    if (!window.confirm('Add a strike to this student? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setUpdatingStrike(true);
+      const endpoint = `/add-strike`;
+      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id: studentProfile.school_id,
+          requester_school_id: currentUser.school_id,
+        }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        const newStrikes = typeof data.strikes === 'number' ? data.strikes : (studentProfile.strikes || 0) + 1;
+        setStudentProfile({ ...studentProfile, strikes: newStrikes });
+        alert('Strike added successfully.');
+      } else {
+        alert(data.message || 'Failed to add strike.');
+      }
+    } catch (error) {
+      console.error('Error adding strike:', error);
+      alert('Failed to add strike. Please try again.');
+    } finally {
+      setUpdatingStrike(false);
     }
   };
 
@@ -263,6 +303,53 @@ export default function StudentProfile() {
                   <p className="text-gray-600">Email: {studentProfile.email}</p>
                 )}
               </div>
+            </div>
+
+            {/* Strikes display and admin controls */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-700 font-semibold">Strikes:</span>
+                <span className="text-red-600 font-bold text-sm">
+                  {typeof studentProfile.strikes === 'number' ? studentProfile.strikes : 0}/3
+                </span>
+                <div className="flex gap-1">
+                  {[0, 1, 2].map((idx) => {
+                    const strikes = typeof studentProfile.strikes === 'number' ? studentProfile.strikes : 0;
+                    const filled = idx < strikes;
+                    return (
+                      <span
+                        key={idx}
+                        className={`w-3 h-3 rounded-full border ${
+                          filled ? 'bg-red-500 border-red-600' : 'bg-gray-200 border-gray-400'
+                        }`}
+                        title={`Strike ${idx + 1}`}
+                      ></span>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleAddStrike}
+                  disabled={updatingStrike || (typeof studentProfile.strikes === 'number' && studentProfile.strikes >= 3)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm ${
+                    typeof studentProfile.strikes === 'number' && studentProfile.strikes >= 3
+                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  }`}
+                >
+                  {updatingStrike ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                      Adding Strike...
+                    </>
+                  ) : (
+                    <>Add Strike</>
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Student Stats */}

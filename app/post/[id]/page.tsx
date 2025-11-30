@@ -5,7 +5,8 @@ import Navbar from "../../../components/Navbar";
 import { PostWithReplies } from "../../types";
 import { getPostById } from "../../centralData";
 import { getPostReplies, postReply } from "../../api/replies";
-import { getPost, blockPost, validatePost } from "../../api/posts";
+import { getPost, blockPost, validatePost, addStrike } from "../../api/posts";
+import { isEnglishOnlyText } from "../../utils/languageValidation";
 // Removed import of currentUser; will load from localStorage
 
 function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isAdminView: boolean) {
@@ -21,10 +22,10 @@ export default function PostDetail() {
   const postId = params?.id ? Number(params.id) : 0;
 
 
-  // Synchronously read user from localStorage on first render
+  // Synchronously read user from localStorage on first render (client-only)
   let initialUser = null;
-  if (typeof window !== "undefined") {
-    const userStr = localStorage.getItem("currentUser");
+  if (typeof window !== "undefined" && typeof window.localStorage !== 'undefined') {
+    const userStr = window.localStorage.getItem("currentUser");
     if (userStr) {
       try {
         initialUser = JSON.parse(userStr);
@@ -45,6 +46,8 @@ export default function PostDetail() {
   const [teacherLoading, setTeacherLoading] = useState(true);
   const [blockingPost, setBlockingPost] = useState(false);
   const [validatingPost, setValidatingPost] = useState(false);
+  const [authorStrikes, setAuthorStrikes] = useState<number | null>(null);
+  const [updatingStrike, setUpdatingStrike] = useState(false);
 
   // Check if user is a teacher using localStorage data
   useEffect(() => {
@@ -85,6 +88,25 @@ export default function PostDetail() {
                   ...postResponse.post,
                   replies: repliesResponse.replies || []
                 });
+                // If admin, also load author's strike count
+                if (isAdmin && postResponse.post?.author_id) {
+                  try {
+                    const proxyResponse = await fetch('/api/proxy', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        path: `/get-student-info-by-user-id?user_id=${encodeURIComponent(postResponse.post.author_id)}&requester_school_id=${encodeURIComponent(currentUser?.school_id || '')}`,
+                        method: 'GET'
+                      })
+                    });
+                    const data = await proxyResponse.json();
+                    if (data.status === 'success' && data.student) {
+                      setAuthorStrikes(typeof data.student.strikes === 'number' ? data.student.strikes : 0);
+                    }
+                  } catch (err) {
+                    console.error('Failed to load author strikes:', err);
+                  }
+                }
               } else {
                 // Got post but not replies, use post without replies
                 setPost({
@@ -141,11 +163,71 @@ export default function PostDetail() {
     }
   }, [postId, currentUser]);
 
+  const handleAddStrikeToAuthor = async () => {
+    if (!currentUser || !isAdmin || !post) return;
+
+    // If we already know the author has 3 strikes, block immediately
+    if (authorStrikes !== null && authorStrikes >= 3) {
+      alert('This student already has the maximum of 3 strikes. You cannot add more.');
+      return;
+    }
+
+    const confirmStrike = window.confirm('Are you sure you want to add a strike to the author of this post?');
+    if (!confirmStrike) return;
+
+    setUpdatingStrike(true);
+    try {
+      // First resolve author to student (school_id + current strikes)
+      const infoResponse = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: `/get-student-info-by-user-id?user_id=${encodeURIComponent(post.author_id)}&requester_school_id=${encodeURIComponent(currentUser.school_id)}`,
+          method: 'GET'
+        })
+      });
+      const infoData = await infoResponse.json();
+
+      if (infoData.status !== 'success' || !infoData.student) {
+        alert(infoData.message || 'Failed to load student info for author.');
+        return;
+      }
+
+      const currentStrikes = typeof infoData.student.strikes === 'number' ? infoData.student.strikes : 0;
+      if (currentStrikes >= 3) {
+        setAuthorStrikes(currentStrikes);
+        alert('This student already has the maximum of 3 strikes. You cannot add more.');
+        return;
+      }
+
+      const schoolId = infoData.student.school_id;
+      const strikeResponse: any = await addStrike(schoolId, currentUser.school_id);
+
+      if (strikeResponse.status === 'success') {
+        const newStrikes = typeof strikeResponse.strikes === 'number' ? strikeResponse.strikes : currentStrikes + 1;
+        setAuthorStrikes(newStrikes);
+        alert(`Strike added successfully. This student now has ${newStrikes} strike(s).`);
+      } else {
+        alert(strikeResponse.message || 'Failed to add strike to author.');
+      }
+    } catch (error) {
+      console.error('Error adding strike to author:', error);
+      alert('Failed to add strike to author. Please try again.');
+    } finally {
+      setUpdatingStrike(false);
+    }
+  };
+
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!replyContent.trim()) {
       alert('Please enter a reply.');
+      return;
+    }
+    // Language validation: only allow English, symbols, and emojis
+    if (!isEnglishOnlyText(replyContent)) {
+      alert('Replies must be written in English only. Please remove any non-English characters (e.g., Korean, Japanese, Chinese).');
       return;
     }
     
@@ -402,13 +484,50 @@ export default function PostDetail() {
             
             <h1 className="text-3xl font-bold text-blue-700 mb-4">{post.title}</h1>
             
-            <div className="text-gray-600 mb-4">
-              by <span className="text-blue-600 font-semibold">
-                {getAuthorDisplay(post.anonymous, post.author_id, isAdmin)}
-              </span> • 
-              <span className="text-gray-500 ml-1">
-                {new Date(post.upload_time).toLocaleDateString()}
-              </span>
+            <div className="text-gray-600 mb-4 flex flex-col gap-1">
+              <div>
+                by <span className="text-blue-600 font-semibold">
+                  {getAuthorDisplay(post.anonymous, post.author_id, isAdmin)}
+                </span> • 
+                <span className="text-gray-500 ml-1">
+                  {new Date(post.upload_time).toLocaleDateString()}
+                </span>
+              </div>
+
+              {isAdmin && (
+                <div className="flex items-center justify-between text-sm text-gray-600 mt-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Author Strikes:</span>
+                    <span className="font-semibold text-red-600">
+                      {authorStrikes !== null ? `${authorStrikes}/3` : '—'}
+                    </span>
+                    <div className="flex items-center gap-1 ml-1">
+                      {[0, 1, 2].map((idx) => (
+                        <div
+                          key={idx}
+                          className={`w-3 h-3 rounded-full border ${
+                            authorStrikes !== null && authorStrikes > idx
+                              ? 'bg-red-500 border-red-500'
+                              : 'bg-gray-200 border-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddStrikeToAuthor}
+                    disabled={updatingStrike || (authorStrikes !== null && authorStrikes >= 3)}
+                    className="ml-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-xs font-semibold flex items-center gap-1"
+                  >
+                    {updatingStrike && (
+                      <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
+                    )}
+                    {authorStrikes !== null && authorStrikes >= 3 ? 'Max Strikes' : 'Strike Author'}
+                  </button>
+                </div>
+              )}
             </div>
             
             <div className="text-gray-700 whitespace-pre-wrap mb-6">

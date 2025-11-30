@@ -86,18 +86,40 @@ function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isAdm
 
 
 export default function Home() {
-  const router = useRouter();
-  useEffect(() => {
-	// Only run on client
-	if (typeof window !== "undefined") {
-	  const isLoggedIn = localStorage.getItem("isLoggedIn");
-	  if (!isLoggedIn) {
-		router.replace("/login");
-	  }
-	}
-  }, [router]);
+	const router = useRouter();
+	const [hasMounted, setHasMounted] = useState(false);
 
-  return (
+	useEffect(() => {
+		// This effect only runs on the client
+		setHasMounted(true);
+		try {
+			const isLoggedIn =
+				typeof window !== "undefined" && typeof window.localStorage !== "undefined"
+					? window.localStorage.getItem("isLoggedIn")
+					: null;
+
+			if (!isLoggedIn) {
+				router.replace("/login");
+			}
+		} catch {
+			// If localStorage is not usable for any reason, just send to login
+			router.replace("/login");
+		}
+	}, [router]);
+
+	// During SSR or before mount, show a neutral loading state (no localStorage access)
+	if (!hasMounted) {
+		return (
+			<div className="min-h-screen bg-gray-50 flex items-center justify-center">
+				<div className="text-center">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+					<p className="text-gray-600">Loading...</p>
+				</div>
+			</div>
+		);
+	}
+
+	return (
 	<Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">
 	  <div className="text-center">
 		<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -106,7 +128,7 @@ export default function Home() {
 	</div>}>
 	  <HomeContent />
 	</Suspense>
-  );
+	);
 }
 
 function HomeContent() {
@@ -125,8 +147,8 @@ function HomeContent() {
 
 	// Load user info from localStorage
 	useEffect(() => {
-		if (typeof window !== "undefined") {
-			const userStr = localStorage.getItem("currentUser");
+		if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+			const userStr = window.localStorage.getItem("currentUser");
 			if (userStr) {
 				const u = JSON.parse(userStr);
 				setCurrentUser(u);

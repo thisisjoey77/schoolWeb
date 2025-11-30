@@ -111,14 +111,13 @@ export default function Categories() {
 
   // Load user info from localStorage
   React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const userStr = localStorage.getItem("currentUser");
-      if (userStr) {
-        const u = JSON.parse(userStr);
-        setCurrentUser(u);
-        if (u.is_admin || u.user_type === 'admin') {
-          setIsAdmin(true);
-        }
+    if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+    const userStr = window.localStorage.getItem("currentUser");
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      setCurrentUser(u);
+      if (u.is_admin || u.user_type === 'admin') {
+        setIsAdmin(true);
       }
     }
   }, []);

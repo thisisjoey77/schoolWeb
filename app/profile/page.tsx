@@ -26,7 +26,8 @@ export default function Profile() {
   // Load user info from localStorage
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const userStr = localStorage.getItem("currentUser");
+       if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+       const userStr = window.localStorage.getItem("currentUser");
       if (userStr) {
         const userData = JSON.parse(userStr);
         console.log('Profile: Loaded user data from localStorage:', userData);
@@ -168,6 +169,31 @@ export default function Profile() {
                 <div>
                   <span className="text-gray-600 font-semibold">Points:</span>
                   <span className="text-yellow-600 ml-2 font-bold">{currentUser?.point || currentUser?.points || 0}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600 font-semibold">Strikes:</span>
+                  <span className="ml-2 flex items-center gap-2">
+                    {/* Numeric fallback */}
+                    <span className="text-red-600 font-bold text-sm">
+                      {typeof currentUser?.strikes === 'number' ? currentUser.strikes : 0}/3
+                    </span>
+                    {/* Visual circles */}
+                    <div className="flex gap-1">
+                      {[0, 1, 2].map((idx) => {
+                        const strikes = typeof currentUser?.strikes === 'number' ? currentUser.strikes : 0;
+                        const filled = idx < strikes;
+                        return (
+                          <span
+                            key={idx}
+                            className={`w-3 h-3 rounded-full border ${
+                              filled ? 'bg-red-500 border-red-600' : 'bg-gray-200 border-gray-400'
+                            }`}
+                            title={`Strike ${idx + 1}`}
+                          ></span>
+                        );
+                      })}
+                    </div>
+                  </span>
                 </div>
               </div>
               )}
