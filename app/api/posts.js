@@ -284,3 +284,19 @@ export async function addStrike(schoolId, requesterSchoolId) {
     })
   });
 }
+
+/**
+ * Remove a strike from a student (admin only)
+ * @param {string} schoolId - Student's school ID
+ * @param {string} requesterSchoolId - Admin's school ID
+ * @returns {Promise<Object>} Remove strike response
+ */
+export async function removeStrike(schoolId, requesterSchoolId) {
+  return await apiRequest('/remove-strike', {
+    method: 'POST',
+    body: JSON.stringify({
+      school_id: schoolId,
+      requester_school_id: requesterSchoolId
+    })
+  });
+}

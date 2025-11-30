@@ -180,6 +180,46 @@ export default function StudentProfile() {
     }
   };
 
+  const handleRemoveStrike = async () => {
+    if (!studentProfile || !currentUser) return;
+
+    const currentStrikes = typeof studentProfile.strikes === 'number' ? studentProfile.strikes : 0;
+    if (currentStrikes <= 0) {
+      alert('This student already has 0 strikes.');
+      return;
+    }
+
+    if (!window.confirm('Remove one strike from this student?')) {
+      return;
+    }
+
+    try {
+      setUpdatingStrike(true);
+      const endpoint = `/remove-strike`;
+      const response = await fetch(`/api/proxy?endpoint=${encodeURIComponent(endpoint)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id: studentProfile.school_id,
+          requester_school_id: currentUser.school_id,
+        }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        const newStrikes = typeof data.strikes === 'number' ? data.strikes : Math.max(currentStrikes - 1, 0);
+        setStudentProfile({ ...studentProfile, strikes: newStrikes });
+        alert('Strike removed successfully.');
+      } else {
+        alert(data.message || 'Failed to remove strike.');
+      }
+    } catch (error) {
+      console.error('Error removing strike:', error);
+      alert('Failed to remove strike. Please try again.');
+    } finally {
+      setUpdatingStrike(false);
+    }
+  };
+
   const loadStudentPosts = async () => {
     try {
       setPostsLoading(true);
@@ -330,25 +370,47 @@ export default function StudentProfile() {
               </div>
 
               {isAdmin && (
-                <button
-                  type="button"
-                  onClick={handleAddStrike}
-                  disabled={updatingStrike || (typeof studentProfile.strikes === 'number' && studentProfile.strikes >= 3)}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm ${
-                    typeof studentProfile.strikes === 'number' && studentProfile.strikes >= 3
-                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                      : 'bg-red-600 hover:bg-red-700 text-white'
-                  }`}
-                >
-                  {updatingStrike ? (
-                    <>
-                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                      Adding Strike...
-                    </>
-                  ) : (
-                    <>Add Strike</>
-                  )}
-                </button>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleAddStrike}
+                    disabled={updatingStrike || (typeof studentProfile.strikes === 'number' && studentProfile.strikes >= 3)}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm ${
+                      typeof studentProfile.strikes === 'number' && studentProfile.strikes >= 3
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
+                  >
+                    {updatingStrike ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        Updating...
+                      </>
+                    ) : (
+                      <>Add Strike</>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveStrike}
+                    disabled={updatingStrike || (typeof studentProfile.strikes === 'number' && studentProfile.strikes === 0)}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-sm ${
+                      typeof studentProfile.strikes === 'number' && studentProfile.strikes === 0
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-green-600 hover:bg-green-700 text-white'
+                    }`}
+                  >
+                    {updatingStrike ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                        Updating...
+                      </>
+                    ) : (
+                      <>Remove Strike</>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
 
