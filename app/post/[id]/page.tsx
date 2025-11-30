@@ -80,66 +80,54 @@ export default function PostDetail() {
           const requesterSchoolId = currentUser?.school_id || null;
           const postResponse: any = await getPost(postId, requesterSchoolId);
           if (postResponse.status === 'success') {
-            // Successfully got post from API, now try to get replies
-            try {
-              const repliesResponse: any = await getPostReplies(postId, requesterSchoolId);
-              if (repliesResponse.status === 'success') {
-                setPost({
-                  ...postResponse.post,
-                  replies: repliesResponse.replies || []
-                });
-                // If admin, also load author's strike count
-                if (isAdmin && postResponse.post?.author_id) {
-                  try {
-                    const proxyResponse = await fetch('/api/proxy', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        path: `/get-student-info-by-user-id?user_id=${encodeURIComponent(
-                          postResponse.post.author_id
-                        )}&requester_school_id=${encodeURIComponent(currentUser?.school_id || '')}`,
-                        method: 'GET'
-                      })
-                    });
-                    const data = await proxyResponse.json();
-                    console.log('Author strikes response:', data);
+            // Successfully got post from API.
+            // /get-post-replies currently returns 404 when called from this page, but the
+            // post object may already include replies when navigated from the list.
+            const initialReplies = Array.isArray(postResponse.post?.replies)
+              ? postResponse.post.replies
+              : [];
 
-                    if (data.status === 'success' && data.student) {
-                      setAuthorIsStudent(true);
-                      setAuthorStrikes(
-                        typeof data.student.strikes === 'number' ? data.student.strikes : 0
-                      );
-                    } else if (data.status === 'error' && data.message === 'Student not found') {
-                      // Author is not a student (e.g., teacher/admin).
-                      setAuthorIsStudent(false);
-                      setAuthorStrikes(null);
-                    } else {
-                      // Other error (e.g., permissions) – treat as unknown
-                      console.warn('Unexpected author strikes error:', data);
-                      setAuthorIsStudent(null);
-                      setAuthorStrikes(null);
-                    }
-                  } catch (err) {
-                    console.error('Failed to load author strikes:', err);
-                    setAuthorIsStudent(null);
-                    setAuthorStrikes(null);
-                  }
-                }
-              } else {
-                // Replies endpoint returned an error (e.g., 404). Log and still show the post.
-                console.warn('Replies API did not return success, showing post without replies:', repliesResponse);
-                setPost({
-                  ...postResponse.post,
-                  replies: []
+            setPost({
+              ...postResponse.post,
+              replies: initialReplies
+            });
+
+            // If admin, also load author's strike count
+            if (isAdmin && postResponse.post?.author_id) {
+              try {
+                const proxyResponse = await fetch('/api/proxy', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    path: `/get-student-info-by-user-id?user_id=${encodeURIComponent(
+                      postResponse.post.author_id
+                    )}&requester_school_id=${encodeURIComponent(currentUser?.school_id || '')}`,
+                    method: 'GET'
+                  })
                 });
+                const data = await proxyResponse.json();
+                console.log('Author strikes response:', data);
+
+                if (data.status === 'success' && data.student) {
+                  setAuthorIsStudent(true);
+                  setAuthorStrikes(
+                    typeof data.student.strikes === 'number' ? data.student.strikes : 0
+                  );
+                } else if (data.status === 'error' && data.message === 'Student not found') {
+                  // Author is not a student (e.g., teacher/admin).
+                  setAuthorIsStudent(false);
+                  setAuthorStrikes(null);
+                } else {
+                  // Other error (e.g., permissions) – treat as unknown
+                  console.warn('Unexpected author strikes error:', data);
+                  setAuthorIsStudent(null);
+                  setAuthorStrikes(null);
+                }
+              } catch (err) {
+                console.error('Failed to load author strikes:', err);
+                setAuthorIsStudent(null);
+                setAuthorStrikes(null);
               }
-            } catch (repliesError) {
-              // Common case right now: /get-post-replies is not implemented and returns 404.
-              console.error('Failed to load replies from API, falling back to empty replies:', repliesError);
-              setPost({
-                ...postResponse.post,
-                replies: []
-              });
             }
           } else {
             throw new Error(postResponse.message || 'Post not found');
