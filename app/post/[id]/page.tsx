@@ -205,12 +205,15 @@ export default function PostDetail() {
       const infoData = await infoResponse.json();
 
       if (infoData.status !== 'success' || !infoData.student) {
+        // Prefer specific backend message when available
         if (infoData.status === 'error' && infoData.message === 'Student not found') {
           setAuthorIsStudent(false);
           setAuthorStrikes(null);
           alert('This post was not written by a student account, so strikes cannot be managed here.');
+        } else if (typeof infoData.message === 'string' && infoData.message.trim().length > 0) {
+          alert(infoData.message);
         } else {
-          alert(infoData.message || 'Failed to load student info for author.');
+          alert('Unable to access this authors student record.');
         }
         return;
       }
@@ -275,12 +278,15 @@ export default function PostDetail() {
       const infoData = await infoResponse.json();
 
       if (infoData.status !== 'success' || !infoData.student) {
+        // Prefer specific backend message when available
         if (infoData.status === 'error' && infoData.message === 'Student not found') {
           setAuthorIsStudent(false);
           setAuthorStrikes(null);
           alert('This post was not written by a student account, so strikes cannot be managed here.');
+        } else if (typeof infoData.message === 'string' && infoData.message.trim().length > 0) {
+          alert(infoData.message);
         } else {
-          alert(infoData.message || 'Failed to load student info for author.');
+          alert('Unable to access this authors student record.');
         }
         return;
       }
