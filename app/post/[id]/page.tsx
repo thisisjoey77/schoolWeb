@@ -464,35 +464,6 @@ export default function PostDetail() {
                   {new Date(post.upload_time).toLocaleDateString()}
                 </span>
               </div>
-
-              {isAdmin && (
-                <div className="flex items-center justify-between text-sm text-gray-600 mt-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Author Strikes:</span>
-                    <span className="font-semibold text-red-600">
-                      {authorIsStudent === false
-                        ? 'N/A (not a student)'
-                        : authorStrikes !== null
-                          ? `${authorStrikes}/3`
-                          : '—'}
-                    </span>
-                    <div className="flex items-center gap-1 ml-1">
-                      {[0, 1, 2].map((idx) => (
-                        <div
-                          key={idx}
-                          className={`w-3 h-3 rounded-full border ${
-                            authorIsStudent === false
-                              ? 'bg-gray-200 border-gray-300'
-                              : authorStrikes !== null && authorStrikes > idx
-                              ? 'bg-red-500 border-red-500'
-                              : 'bg-gray-200 border-gray-300'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
             
             <div className="text-gray-700 whitespace-pre-wrap mb-6">
