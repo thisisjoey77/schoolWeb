@@ -341,19 +341,25 @@ export default function PostDetail() {
       });
       
       if (response.status === 'success') {
-        // Reload replies
-        const repliesResponse: any = await getPostReplies(postId);
-        if (repliesResponse.status === 'success' && post) {
-          setPost({
-            ...post,
-            replies: repliesResponse.replies || []
-          });
+        // Try to reload replies, but don't treat failure as a posting error
+        try {
+          const requesterSchoolId = currentUser?.school_id || null;
+          const repliesResponse: any = await getPostReplies(postId, requesterSchoolId);
+          if (repliesResponse.status === 'success' && post) {
+            setPost({
+              ...post,
+              replies: repliesResponse.replies || []
+            });
+          }
+        } catch (reloadError) {
+          console.error('Failed to reload replies after posting:', reloadError);
+          // We still consider the reply submitted successfully (it will appear after admin approval)
         }
         
         // Reset form
         setReplyContent('');
         setIsAnonymous(false);
-        alert('Reply posted successfully!');
+        alert('Reply submitted successfully and is now pending approval by an admin.');
       } else {
         throw new Error(response.message || 'Failed to post reply');
       }
