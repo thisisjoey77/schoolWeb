@@ -80,17 +80,28 @@ export default function PostDetail() {
           const requesterSchoolId = currentUser?.school_id || null;
           const postResponse: any = await getPost(postId, requesterSchoolId);
           if (postResponse.status === 'success') {
-            // Successfully got post from API.
-            // /get-post-replies currently returns 404 when called from this page, but the
-            // post object may already include replies when navigated from the list.
-            const initialReplies = Array.isArray(postResponse.post?.replies)
-              ? postResponse.post.replies
-              : [];
-
-            setPost({
-              ...postResponse.post,
-              replies: initialReplies
-            });
+            // Successfully got post from API, now load replies from new /get-post-replies endpoint
+            try {
+              const repliesResponse: any = await getPostReplies(postId, requesterSchoolId);
+              if (repliesResponse.status === 'success') {
+                setPost({
+                  ...postResponse.post,
+                  replies: repliesResponse.replies || []
+                });
+              } else {
+                console.warn('Replies API returned non-success, using empty replies:', repliesResponse);
+                setPost({
+                  ...postResponse.post,
+                  replies: []
+                });
+              }
+            } catch (repliesError) {
+              console.error('Failed to load replies for post, using empty replies:', repliesError);
+              setPost({
+                ...postResponse.post,
+                replies: []
+              });
+            }
 
             // If admin, also load author's strike count
             if (isAdmin && postResponse.post?.author_id) {
