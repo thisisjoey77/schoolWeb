@@ -80,7 +80,7 @@ export default function PostDetail() {
           const requesterSchoolId = currentUser?.school_id || null;
           const postResponse: any = await getPost(postId, requesterSchoolId);
           if (postResponse.status === 'success') {
-            // Successfully got post from API, now get replies
+            // Successfully got post from API, now try to get replies
             try {
               const repliesResponse: any = await getPostReplies(postId, requesterSchoolId);
               if (repliesResponse.status === 'success') {
@@ -126,15 +126,16 @@ export default function PostDetail() {
                   }
                 }
               } else {
-                // Got post but not replies, use post without replies
+                // Replies endpoint returned an error (e.g., 404). Log and still show the post.
+                console.warn('Replies API did not return success, showing post without replies:', repliesResponse);
                 setPost({
                   ...postResponse.post,
                   replies: []
                 });
               }
             } catch (repliesError) {
-              console.error('Failed to load replies from API:', repliesError);
-              // Got post but not replies, use post without replies
+              // Common case right now: /get-post-replies is not implemented and returns 404.
+              console.error('Failed to load replies from API, falling back to empty replies:', repliesError);
               setPost({
                 ...postResponse.post,
                 replies: []
