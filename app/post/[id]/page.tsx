@@ -5,7 +5,7 @@ import Navbar from "../../../components/Navbar";
 import { PostWithReplies } from "../../types";
 import { getPostById } from "../../centralData";
 import { getPostReplies, postReply } from "../../api/replies";
-import { getPost, blockPost, validatePost, addStrike, removeStrike } from "../../api/posts";
+import { getPost, blockPost, validatePost } from "../../api/posts";
 import { isEnglishOnlyText } from "../../utils/languageValidation";
 // Removed import of currentUser; will load from localStorage
 
@@ -47,7 +47,6 @@ export default function PostDetail() {
   const [blockingPost, setBlockingPost] = useState(false);
   const [validatingPost, setValidatingPost] = useState(false);
   const [authorStrikes, setAuthorStrikes] = useState<number | null>(null);
-  const [updatingStrike, setUpdatingStrike] = useState(false);
   const [authorIsStudent, setAuthorIsStudent] = useState<boolean | null>(null);
 
   // Check if user is a teacher using localStorage data
@@ -109,12 +108,14 @@ export default function PostDetail() {
                       setAuthorIsStudent(false);
                       setAuthorStrikes(null);
                     } else {
-                      // Unknown error while trying to resolve author; keep previous state.
+                      // Unknown error while trying to resolve author; show as unknown
                       setAuthorIsStudent(null);
+                      setAuthorStrikes(null);
                     }
                   } catch (err) {
                     console.error('Failed to load author strikes:', err);
                     setAuthorIsStudent(null);
+                    setAuthorStrikes(null);
                   }
                 }
               } else {
@@ -173,144 +174,7 @@ export default function PostDetail() {
     }
   }, [postId, currentUser]);
 
-  const handleAddStrikeToAuthor = async () => {
-    if (!currentUser || !isAdmin || !post) return;
-
-    // If we know the author is not a student, explain and exit early.
-    if (authorIsStudent === false) {
-      alert('This post was not written by a student account, so strikes cannot be managed here.');
-      return;
-    }
-
-    // If we already know the author has 3 strikes, block immediately
-    if (authorStrikes !== null && authorStrikes >= 3) {
-      alert('This student already has the maximum of 3 strikes. You cannot add more.');
-      return;
-    }
-
-    const confirmStrike = window.confirm('Are you sure you want to add a strike to the author of this post?');
-    if (!confirmStrike) return;
-
-    setUpdatingStrike(true);
-    try {
-      // First resolve author to student (school_id + current strikes)
-      const infoResponse = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: `/get-student-info-by-user-id?user_id=${encodeURIComponent(post.author_id)}&requester_school_id=${encodeURIComponent(currentUser.school_id)}`,
-          method: 'GET'
-        })
-      });
-      const infoData = await infoResponse.json();
-
-      if (infoData.status !== 'success' || !infoData.student) {
-        // Prefer specific backend message when available
-        if (infoData.status === 'error' && infoData.message === 'Student not found') {
-          setAuthorIsStudent(false);
-          setAuthorStrikes(null);
-          alert('This post was not written by a student account, so strikes cannot be managed here.');
-        } else if (typeof infoData.message === 'string' && infoData.message.trim().length > 0) {
-          alert(infoData.message);
-        } else {
-          alert('Unable to access this authors student record.');
-        }
-        return;
-      }
-
-      // At this point we have confirmed the author is a student
-      setAuthorIsStudent(true);
-
-      const currentStrikes = typeof infoData.student.strikes === 'number' ? infoData.student.strikes : 0;
-      if (currentStrikes >= 3) {
-        setAuthorStrikes(currentStrikes);
-        alert('This student already has the maximum of 3 strikes. You cannot add more.');
-        return;
-      }
-
-      const schoolId = infoData.student.school_id;
-      const strikeResponse: any = await addStrike(schoolId, currentUser.school_id);
-
-      if (strikeResponse.status === 'success') {
-        const newStrikes = typeof strikeResponse.strikes === 'number' ? strikeResponse.strikes : currentStrikes + 1;
-        setAuthorStrikes(newStrikes);
-        alert(`Strike added successfully. This student now has ${newStrikes} strike(s).`);
-      } else {
-        alert(strikeResponse.message || 'Failed to add strike to author.');
-      }
-    } catch (error) {
-      console.error('Error adding strike to author:', error);
-      alert('Failed to add strike to author. Please try again.');
-    } finally {
-      setUpdatingStrike(false);
-    }
-  };
-
-  const handleRemoveStrikeFromAuthor = async () => {
-    if (!currentUser || !isAdmin || !post) return;
-
-    // If we know the author is not a student, explain and exit early.
-    if (authorIsStudent === false) {
-      alert('This post was not written by a student account, so strikes cannot be managed here.');
-      return;
-    }
-
-    const current = typeof authorStrikes === 'number' ? authorStrikes : 0;
-    if (current <= 0) {
-      alert('This student already has 0 strikes.');
-      return;
-    }
-
-    const confirmRemove = window.confirm('Remove one strike from the author of this post?');
-    if (!confirmRemove) return;
-
-    setUpdatingStrike(true);
-    try {
-      // Resolve author to student to get school_id
-      const infoResponse = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: `/get-student-info-by-user-id?user_id=${encodeURIComponent(post.author_id)}&requester_school_id=${encodeURIComponent(currentUser.school_id)}`,
-          method: 'GET'
-        })
-      });
-      const infoData = await infoResponse.json();
-
-      if (infoData.status !== 'success' || !infoData.student) {
-        // Prefer specific backend message when available
-        if (infoData.status === 'error' && infoData.message === 'Student not found') {
-          setAuthorIsStudent(false);
-          setAuthorStrikes(null);
-          alert('This post was not written by a student account, so strikes cannot be managed here.');
-        } else if (typeof infoData.message === 'string' && infoData.message.trim().length > 0) {
-          alert(infoData.message);
-        } else {
-          alert('Unable to access this authors student record.');
-        }
-        return;
-      }
-
-      // At this point we have confirmed the author is a student
-      setAuthorIsStudent(true);
-
-      const schoolId = infoData.student.school_id;
-      const removeResponse: any = await removeStrike(schoolId, currentUser.school_id);
-
-      if (removeResponse.status === 'success') {
-        const newStrikes = typeof removeResponse.strikes === 'number' ? removeResponse.strikes : Math.max(current - 1, 0);
-        setAuthorStrikes(newStrikes);
-        alert(`Strike removed successfully. This student now has ${newStrikes} strike(s).`);
-      } else {
-        alert(removeResponse.message || 'Failed to remove strike from author.');
-      }
-    } catch (error) {
-      console.error('Error removing strike from author:', error);
-      alert('Failed to remove strike from author. Please try again.');
-    } finally {
-      setUpdatingStrike(false);
-    }
-  };
+  // Strike management from posts is intentionally disabled.
 
   const handleReplySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -619,44 +483,6 @@ export default function PostDetail() {
                         />
                       ))}
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 ml-4">
-                    <button
-                      type="button"
-                      onClick={handleAddStrikeToAuthor}
-                      disabled={
-                        updatingStrike ||
-                        authorIsStudent === false ||
-                        (authorStrikes !== null && authorStrikes >= 3)
-                      }
-                      className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-xs font-semibold flex items-center gap-1"
-                    >
-                      {updatingStrike && (
-                        <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
-                      )}
-                      {authorIsStudent === false
-                        ? 'Not a student'
-                        : authorStrikes !== null && authorStrikes >= 3
-                          ? 'Max Strikes'
-                          : 'Strike Author'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleRemoveStrikeFromAuthor}
-                      disabled={
-                        updatingStrike ||
-                        authorIsStudent === false ||
-                        (authorStrikes !== null && authorStrikes === 0)
-                      }
-                      className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-3 py-1 rounded text-xs font-semibold flex items-center gap-1"
-                    >
-                      {updatingStrike && (
-                        <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
-                      )}
-                      {authorIsStudent === false ? 'Not a student' : 'Remove Strike'}
-                    </button>
                   </div>
                 </div>
               )}
