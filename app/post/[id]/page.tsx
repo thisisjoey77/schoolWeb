@@ -10,21 +10,6 @@ import { isEnglishOnlyText } from "../../utils/languageValidation";
 // Removed import of currentUser; will load from localStorage
 
 function getAuthorDisplay(isAnonymous: boolean | number, authorId: string, isAdminView: boolean) {
-
-              {isAdmin && authorIsStudent === true && authorStrikes !== null && (
-                <div className="mb-2 text-sm text-gray-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-1 inline-block">
-                  <span className="font-semibold">Student Strikes:</span>{' '}
-                  <span className={authorStrikes >= 3 ? 'text-red-600 font-bold' : ''}>
-                    {authorStrikes} / 3
-                  </span>
-                </div>
-              )}
-
-              {isAdmin && authorIsStudent === false && (
-                <div className="mb-2 text-xs text-gray-500">
-                  Author is not a student (teacher/admin account).
-                </div>
-              )}
   const anonymous = typeof isAnonymous === 'number' ? isAnonymous === 1 : isAnonymous;
   if (!anonymous) return authorId;
   return isAdminView ? `${authorId} (Anon)` : 'Anonymous';
