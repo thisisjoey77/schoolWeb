@@ -95,20 +95,27 @@ export default function PostDetail() {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
-                        path: `/get-student-info-by-user-id?user_id=${encodeURIComponent(postResponse.post.author_id)}&requester_school_id=${encodeURIComponent(currentUser?.school_id || '')}`,
+                        path: `/get-student-info-by-user-id?user_id=${encodeURIComponent(
+                          postResponse.post.author_id
+                        )}&requester_school_id=${encodeURIComponent(currentUser?.school_id || '')}`,
                         method: 'GET'
                       })
                     });
                     const data = await proxyResponse.json();
+                    console.log('Author strikes response:', data);
+
                     if (data.status === 'success' && data.student) {
                       setAuthorIsStudent(true);
-                      setAuthorStrikes(typeof data.student.strikes === 'number' ? data.student.strikes : 0);
+                      setAuthorStrikes(
+                        typeof data.student.strikes === 'number' ? data.student.strikes : 0
+                      );
                     } else if (data.status === 'error' && data.message === 'Student not found') {
-                      // Author is not a student (e.g., teacher/admin). Mark and leave strikes as null.
+                      // Author is not a student (e.g., teacher/admin).
                       setAuthorIsStudent(false);
                       setAuthorStrikes(null);
                     } else {
-                      // Unknown error while trying to resolve author; show as unknown
+                      // Other error (e.g., permissions) – treat as unknown
+                      console.warn('Unexpected author strikes error:', data);
                       setAuthorIsStudent(null);
                       setAuthorStrikes(null);
                     }
